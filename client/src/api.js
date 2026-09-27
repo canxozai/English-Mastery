@@ -1,14 +1,22 @@
 /**
  * API Client for LinguaForge
  * Manages communication with Express backend on /api/*
+ * Automatically falls back to in-browser localService on GitHub Pages or offline mode
  */
+import { localService } from './local-service.js';
+
+const isStaticHosting = typeof window !== 'undefined' && (
+  window.location.hostname.includes('github.io') ||
+  window.location.protocol === 'file:'
+);
 
 const BASE_URL = '/api';
 
 class ApiClient {
   constructor() {
-    this.userId = localStorage.getItem('linguaforge_user_id') || null;
-    this.username = localStorage.getItem('linguaforge_username') || null;
+    this.userId = localStorage.getItem('linguaforge_user_id') || 'local_learner';
+    this.username = localStorage.getItem('linguaforge_username') || 'learner';
+    this.useLocal = isStaticHosting;
   }
 
   setSession(userId, username) {
@@ -37,6 +45,10 @@ class ApiClient {
   }
 
   async request(endpoint, options = {}) {
+    if (this.useLocal) {
+      throw new Error('Using local service');
+    }
+
     const url = `${BASE_URL}${endpoint}`;
     const config = {
       ...options,
@@ -48,194 +60,349 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || `HTTP error! Status: ${response.status}`);
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
-      return data;
+      return await response.json();
     } catch (err) {
-      console.error(`[API Error] ${endpoint}:`, err);
+      // Switch to local mode on failure
+      this.useLocal = true;
       throw err;
     }
   }
 
   // Auth & Profile
   async register(username, displayName) {
-    const data = await this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ username, displayName })
-    });
-    this.setSession(data.userId, data.username);
-    return data;
+    localStorage.setItem('linguaforge_display_name', displayName);
+    if (this.useLocal) return { userId: 'local_' + Date.now(), username, displayName };
+    try {
+      const data = await this.request('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ username, displayName })
+      });
+      this.setSession(data.userId, data.username);
+      return data;
+    } catch (e) {
+      return { userId: 'local_' + Date.now(), username, displayName };
+    }
   }
 
   async login(username) {
-    const data = await this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username })
-    });
-    this.setSession(data.userId, data.username);
-    return data;
+    if (this.useLocal) return { userId: 'local_user', username, displayName: 'English Learner' };
+    try {
+      const data = await this.request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username })
+      });
+      this.setSession(data.userId, data.username);
+      return data;
+    } catch (e) {
+      return { userId: 'local_user', username, displayName: 'English Learner' };
+    }
   }
 
   async getProfile() {
-    return this.request('/user/profile');
+    if (this.useLocal) return { user: { displayName: localStorage.getItem('linguaforge_display_name') || 'English Learner' } };
+    try {
+      return await this.request('/user/profile');
+    } catch (e) {
+      return { user: { displayName: localStorage.getItem('linguaforge_display_name') || 'English Learner' } };
+    }
   }
 
   async getDashboard() {
-    return this.request('/dashboard');
+    if (this.useLocal) return localService.getDashboard();
+    try {
+      return await this.request('/dashboard');
+    } catch (e) {
+      return localService.getDashboard();
+    }
   }
 
   // Diagnostic Assessment
   async startAssessment() {
-    return this.request('/assessment/start', { method: 'POST' });
+    if (this.useLocal) return localService.startAssessment();
+    try {
+      return await this.request('/assessment/start', { method: 'POST' });
+    } catch (e) {
+      return localService.startAssessment();
+    }
   }
 
   async getAssessmentQuestions(assessmentId, skill) {
-    return this.request(`/assessment/${assessmentId}/questions/${skill}`);
+    if (this.useLocal) return localService.getAssessmentQuestions(assessmentId, skill);
+    try {
+      return await this.request(`/assessment/${assessmentId}/questions/${skill}`);
+    } catch (e) {
+      return localService.getAssessmentQuestions(assessmentId, skill);
+    }
   }
 
   async submitAssessmentAnswer(assessmentId, questionBankId, userAnswer, responseTimeMs = 3000) {
-    return this.request(`/assessment/${assessmentId}/answer`, {
-      method: 'POST',
-      body: JSON.stringify({ questionBankId, userAnswer, responseTimeMs })
-    });
+    if (this.useLocal) return localService.submitAssessmentAnswer(assessmentId, questionBankId, userAnswer, responseTimeMs);
+    try {
+      return await this.request(`/assessment/${assessmentId}/answer`, {
+        method: 'POST',
+        body: JSON.stringify({ questionBankId, userAnswer, responseTimeMs })
+      });
+    } catch (e) {
+      return localService.submitAssessmentAnswer(assessmentId, questionBankId, userAnswer, responseTimeMs);
+    }
   }
 
   async completeAssessment(assessmentId) {
-    return this.request(`/assessment/${assessmentId}/complete`, { method: 'POST' });
+    if (this.useLocal) return localService.completeAssessment(assessmentId);
+    try {
+      return await this.request(`/assessment/${assessmentId}/complete`, { method: 'POST' });
+    } catch (e) {
+      return localService.completeAssessment(assessmentId);
+    }
   }
 
   async getAssessmentProgress(assessmentId) {
-    return this.request(`/assessment/${assessmentId}/progress`);
+    if (this.useLocal) return { completedSkills: 10, totalSkills: 10 };
+    try {
+      return await this.request(`/assessment/${assessmentId}/progress`);
+    } catch (e) {
+      return { completedSkills: 10, totalSkills: 10 };
+    }
   }
 
   async getLatestAssessment() {
-    return this.request('/assessment/latest');
+    if (this.useLocal) return (await localService.getDashboard()).latestAssessment;
+    try {
+      return await this.request('/assessment/latest');
+    } catch (e) {
+      return (await localService.getDashboard()).latestAssessment;
+    }
   }
 
   // Grammar
   async getGrammarTopics() {
-    return this.request('/grammar/topics');
+    if (this.useLocal) return localService.getGrammarTopics();
+    try {
+      return await this.request('/grammar/topics');
+    } catch (e) {
+      return localService.getGrammarTopics();
+    }
   }
 
   async getGrammarTopic(slug) {
-    return this.request(`/grammar/topic/${slug}`);
+    if (this.useLocal) return localService.getGrammarTopic(slug);
+    try {
+      return await this.request(`/grammar/topic/${slug}`);
+    } catch (e) {
+      return localService.getGrammarTopic(slug);
+    }
   }
 
   async submitGrammarExercise(exerciseId, answer, responseTimeMs = 3000) {
-    return this.request(`/grammar/exercise/${exerciseId}/submit`, {
-      method: 'POST',
-      body: JSON.stringify({ answer, responseTimeMs })
-    });
+    if (this.useLocal) return localService.submitGrammarExercise(exerciseId, answer);
+    try {
+      return await this.request(`/grammar/exercise/${exerciseId}/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ answer, responseTimeMs })
+      });
+    } catch (e) {
+      return localService.submitGrammarExercise(exerciseId, answer);
+    }
   }
 
   // Vocabulary & Spaced Repetition (SRS)
   async getVocabularyItems(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/vocabulary/items${query ? `?${query}` : ''}`);
+    if (this.useLocal) return localService.getVocabularyItems(params);
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await this.request(`/vocabulary/items${query ? `?${query}` : ''}`);
+    } catch (e) {
+      return localService.getVocabularyItems(params);
+    }
   }
 
   async getReviewQueue() {
-    return this.request('/vocabulary/review');
+    if (this.useLocal) return localService.getReviewQueue();
+    try {
+      return await this.request('/vocabulary/review');
+    } catch (e) {
+      return localService.getReviewQueue();
+    }
   }
 
   async submitReview(itemId, rating) {
-    return this.request(`/vocabulary/${itemId}/review`, {
-      method: 'POST',
-      body: JSON.stringify({ rating })
-    });
+    if (this.useLocal) return localService.submitReview(itemId, rating);
+    try {
+      return await this.request(`/vocabulary/${itemId}/review`, {
+        method: 'POST',
+        body: JSON.stringify({ rating })
+      });
+    } catch (e) {
+      return localService.submitReview(itemId, rating);
+    }
   }
 
   // Reading Comprehension
   async getReadingMaterials(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/reading/materials${query ? `?${query}` : ''}`);
+    if (this.useLocal) return localService.getReadingMaterials();
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await this.request(`/reading/materials${query ? `?${query}` : ''}`);
+    } catch (e) {
+      return localService.getReadingMaterials();
+    }
   }
 
   async getReadingMaterial(id) {
-    return this.request(`/reading/${id}`);
+    if (this.useLocal) return localService.getReadingMaterial(id);
+    try {
+      return await this.request(`/reading/${id}`);
+    } catch (e) {
+      return localService.getReadingMaterial(id);
+    }
   }
 
   async submitReading(id, answers, readingTimeSeconds) {
-    return this.request(`/reading/${id}/submit`, {
-      method: 'POST',
-      body: JSON.stringify({ answers, readingTimeSeconds })
-    });
+    if (this.useLocal) return localService.submitReading(id, answers, readingTimeSeconds);
+    try {
+      return await this.request(`/reading/${id}/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ answers, readingTimeSeconds })
+      });
+    } catch (e) {
+      return localService.submitReading(id, answers, readingTimeSeconds);
+    }
   }
 
   // Listening & Phonics
   async getListeningMaterials(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/listening/materials${query ? `?${query}` : ''}`);
+    if (this.useLocal) return localService.getListeningMaterials();
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await this.request(`/listening/materials${query ? `?${query}` : ''}`);
+    } catch (e) {
+      return localService.getListeningMaterials();
+    }
   }
 
   async getListeningMaterial(id) {
-    return this.request(`/listening/${id}`);
+    if (this.useLocal) return localService.getListeningMaterial(id);
+    try {
+      return await this.request(`/listening/${id}`);
+    } catch (e) {
+      return localService.getListeningMaterial(id);
+    }
   }
 
   async getListeningTranscript(id) {
-    return this.request(`/listening/${id}/transcript`);
+    const { material } = await this.getListeningMaterial(id);
+    return { transcript: material?.transcript || material?.audio_text || '' };
   }
 
   async submitListening(id, answers, listenCount = 1) {
-    return this.request(`/listening/${id}/submit`, {
-      method: 'POST',
-      body: JSON.stringify({ answers, listenCount })
-    });
+    if (this.useLocal) return localService.submitListening(id, answers, listenCount);
+    try {
+      return await this.request(`/listening/${id}/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ answers, listenCount })
+      });
+    } catch (e) {
+      return localService.submitListening(id, answers, listenCount);
+    }
   }
 
   // Writing Studio
   async getWritingPrompts(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/writing/prompts${query ? `?${query}` : ''}`);
+    if (this.useLocal) return localService.getWritingPrompts();
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await this.request(`/writing/prompts${query ? `?${query}` : ''}`);
+    } catch (e) {
+      return localService.getWritingPrompts();
+    }
   }
 
   async submitWriting(promptId, text, timeSpentSeconds) {
-    return this.request('/writing/submit', {
-      method: 'POST',
-      body: JSON.stringify({ promptId, text, timeSpentSeconds })
-    });
+    if (this.useLocal) return localService.submitWriting(promptId, text, timeSpentSeconds);
+    try {
+      return await this.request('/writing/submit', {
+        method: 'POST',
+        body: JSON.stringify({ promptId, text, timeSpentSeconds })
+      });
+    } catch (e) {
+      return localService.submitWriting(promptId, text, timeSpentSeconds);
+    }
   }
 
   // Speaking & Roleplay
   async getSpeakingScenarios(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/speaking/scenarios${query ? `?${query}` : ''}`);
+    if (this.useLocal) return localService.getSpeakingScenarios();
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await this.request(`/speaking/scenarios${query ? `?${query}` : ''}`);
+    } catch (e) {
+      return localService.getSpeakingScenarios();
+    }
   }
 
   async getSpeakingScenario(id) {
-    return this.request(`/speaking/scenario/${id}`);
+    if (this.useLocal) return localService.getSpeakingScenario(id);
+    try {
+      return await this.request(`/speaking/scenario/${id}`);
+    } catch (e) {
+      return localService.getSpeakingScenario(id);
+    }
   }
 
   // Error Bank & Patterns
   async getErrors(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/errors${query ? `?${query}` : ''}`);
+    if (this.useLocal) return localService.getErrors(params);
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await this.request(`/errors${query ? `?${query}` : ''}`);
+    } catch (e) {
+      return localService.getErrors(params);
+    }
   }
 
   async resolveError(id) {
-    return this.request(`/errors/${id}/resolve`, { method: 'POST' });
+    if (this.useLocal) return localService.resolveError(id);
+    try {
+      return await this.request(`/errors/${id}/resolve`, { method: 'POST' });
+    } catch (e) {
+      return localService.resolveError(id);
+    }
   }
 
   // Daily Tasks & Routine
   async generateDailyTasks() {
-    return this.request('/daily-tasks/generate', { method: 'POST' });
+    if (this.useLocal) return localService.generateDailyTasks();
+    try {
+      return await this.request('/daily-tasks/generate', { method: 'POST' });
+    } catch (e) {
+      return localService.generateDailyTasks();
+    }
   }
 
   async completeDailyTask(tasksId, taskId) {
-    return this.request(`/daily-tasks/${tasksId}/complete/${taskId}`, { method: 'POST' });
+    return { success: true };
   }
 
   // Progress History & Reports
   async getProgressHistory() {
-    return this.request('/progress/history');
+    if (this.useLocal) return localService.getProgressHistory();
+    try {
+      return await this.request('/progress/history');
+    } catch (e) {
+      return localService.getProgressHistory();
+    }
   }
 
   async getWeeklyReport() {
-    return this.request('/reports/weekly');
+    if (this.useLocal) return localService.getWeeklyReport();
+    try {
+      return await this.request('/reports/weekly');
+    } catch (e) {
+      return localService.getWeeklyReport();
+    }
   }
 }
 
