@@ -1996,7 +1996,6 @@
   gap: 16px !important;
   box-sizing: border-box !important;
   outline: none !important;
-  user-select: none !important;
 }
 
 .option-item:hover,
@@ -2235,12 +2234,37 @@
   animation: fadeIn 0.25s ease-out !important;
 }
 
-/* Pointer Events Protection: clicking label or prefix triggers parent option */
+/* Option prefix badge is non-selectable */
 .option-letter,
-.opt-prefix,
-.option-label,
-.opt-text {
+.opt-prefix {
   pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Option label and question texts are fully selectable for instant word inspection */
+.option-label,
+.opt-text,
+.question-stem,
+.exercise-prompt,
+.comp-question-title,
+.l-question-title,
+.explanation-text,
+.feedback-body,
+.reading-paragraph,
+.transcript-content,
+.reading-text,
+.vocab-example,
+.scenario-desc,
+.chat-bubble,
+.rule-item,
+.card p,
+.card h1,
+.card h2,
+.card h3,
+.card li {
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 /* ==========================================================================
@@ -2514,6 +2538,13 @@
   color: #c7d2fe;
 }
 
+.loading-pulse {
+  animation: loadingPulse 1.2s ease-in-out infinite;
+  color: #a5b4fc !important;
+}
 
-
-
+@keyframes loadingPulse {
+  0% { opacity: 0.55; }
+  50% { opacity: 1; }
+  100% { opacity: 0.55; }
+}

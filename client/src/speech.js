@@ -5,20 +5,20 @@
 
 class SpeechService {
   constructor() {
-    this.synth = window.speechSynthesis || null;
+    this.synth = typeof window !== 'undefined' ? (window.speechSynthesis || null) : null;
     this.recognition = null;
     this.voices = [];
     this.preferredAccent = 'en-US'; // or 'en-GB'
     this.preferredRate = 1.0;
 
-    if (this.synth) {
+    if (typeof window !== 'undefined' && this.synth) {
       this.loadVoices();
-      if (speechSynthesis.onvoiceschanged !== undefined) {
+      if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = () => this.loadVoices();
       }
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    const SpeechRecognition = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition || null) : null;
     if (SpeechRecognition) {
       this.recognition = new SpeechRecognition();
       this.recognition.continuous = false;
@@ -29,7 +29,8 @@ class SpeechService {
 
   loadVoices() {
     if (!this.synth) return;
-    this.voices = this.synth.getVoices().filter(v => v.lang.startsWith('en'));
+    const all = this.synth.getVoices() || [];
+    this.voices = all.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
   }
 
   isTtsSupported() {
@@ -41,7 +42,103 @@ class SpeechService {
   }
 
   /**
-   * Speak English text with customizable accent and speed
+   * Cleans text to prevent TTS voices from reciting raw punctuation symbols
+   * (e.g. "underscore", "alt çizgi", "quote", "tırnak", "parenthesis", "colon", "slash", "tire")
+   */
+  sanitizeForSpeech(text) {
+    if (!text) return '';
+    let s = String(text);
+
+    // 1. Replace fill-in-the-blank underscores (one or more) with "blank"
+    s = s.replace(/_+/g, ' blank ');
+
+    // 2. Replace slash choices (e.g. he/she, either/or) with natural English "or"
+    s = s.replace(/(\b\w+)\s*\/\s*(\w+\b)/g, '$1 or $2');
+    s = s.replace(/\//g, ' ');
+
+    // 3. Strip HTML tags if any
+    s = s.replace(/<[^>]+>/g, ' ');
+
+    // 4. Strip quotation marks, apostrophe-wrappers, backticks, backslashes
+    // Keep internal apostrophes for contractions (don't, I'm) by only removing quotes that wrap words
+    s = s.replace(/["“”«»`\\]/g, ' ');
+    s = s.replace(/(^|\s)['‘](.*?)['’](\s|$)/g, '$1 $2 $3'); // remove surrounding quotes
+    s = s.replace(/['’]{2,}/g, ' ');
+
+    // 5. Replace colons and semicolons with a gentle pause (comma) so voices never say "colon" or "iki nokta"
+    s = s.replace(/[:;]/g, ', ');
+
+    // 6. Replace parentheses, brackets, and braces with commas for natural phrasing
+    s = s.replace(/[()[\]{}]/g, ', ');
+
+    // 7. Replace dashes / hyphens with a space or comma so voices never say "hyphen" or "tire"
+    s = s.replace(/\s+[-—–]+\s+/g, ', ');
+    s = s.replace(/[-—–]{2,}/g, ', ');
+    // Hyphenated compound words like "turn-taking", "fill-in": replace with space for smooth pronunciation
+    s = s.replace(/(\b\w+)-(\w+\b)/g, '$1 $2');
+    s = s.replace(/[-—–]/g, ' ');
+
+    // 8. Replace multiple dots / ellipses with a single sentence stop
+    s = s.replace(/\.{2,}/g, '. ');
+
+    // 9. Remove miscellaneous symbols that voices pronounce literally
+    s = s.replace(/[*#^~<>@$%&+=|_]/g, ' ');
+
+    // 10. Clean up multiple punctuation marks (e.g. ",,", ".,", "?!")
+    s = s.replace(/,\s*,+/g, ', ');
+    s = s.replace(/,\s*\./g, '.');
+    s = s.replace(/\.\s*,/g, '.');
+    // Remove space before punctuation marks
+    s = s.replace(/\s+([.,!?;:])/g, '$1');
+
+    // 11. Normalize whitespace
+    s = s.replace(/\s+/g, ' ').trim();
+
+    return s;
+  }
+
+  /**
+   * Find best available English voice, strictly avoiding Turkish/system fallbacks
+   */
+  getBestVoice(targetLang = 'en-US') {
+    if (!this.synth) return null;
+    let list = this.voices;
+    if (!list || list.length === 0) {
+      list = (this.synth.getVoices() || []).filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+      this.voices = list;
+    }
+
+    if (list.length === 0) {
+      // Re-fetch all voices directly from synthesis
+      const allVoices = this.synth.getVoices() || [];
+      list = allVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+      this.voices = list;
+    }
+
+    if (list.length === 0) return null;
+
+    // 1. Try exact accent match
+    const exact = list.find(v => v.lang.toLowerCase() === targetLang.toLowerCase());
+    if (exact) return exact;
+
+    // 2. Try prefix match (e.g. en-US, en-GB)
+    const langPrefix = targetLang.slice(0, 5);
+    const prefixMatch = list.find(v => v.lang.toLowerCase().startsWith(langPrefix.toLowerCase()));
+    if (prefixMatch) return prefixMatch;
+
+    // 3. Prefer natural / Google / Samantha / David / Jenny English voices
+    const natural = list.find(v => {
+      const n = (v.name || '').toLowerCase();
+      return n.includes('natural') || n.includes('google') || n.includes('samantha') || n.includes('david') || n.includes('jenny') || n.includes('zira');
+    });
+    if (natural) return natural;
+
+    // 4. Return any English voice
+    return list[0];
+  }
+
+  /**
+   * Speak English text with customizable accent, natural pauses, and sanitized punctuation
    */
   speak(text, options = {}) {
     if (!this.synth) {
@@ -51,15 +148,22 @@ class SpeechService {
 
     this.cancel();
 
-    return new Promise((resolve, reject) => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = options.rate || this.preferredRate || 1.0;
+    const cleanText = this.sanitizeForSpeech(text);
+    if (!cleanText) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = options.rate || this.preferredRate || 0.95;
       utterance.pitch = options.pitch || 1.0;
 
-      // Select matching voice
       const targetLang = options.lang || this.preferredAccent || 'en-US';
-      const voice = this.voices.find(v => v.lang.includes(targetLang)) || this.voices[0];
-      if (voice) utterance.voice = voice;
+      utterance.lang = targetLang; // Enforce English phonetic rules
+
+      // Select strict English voice to prevent Turkish Windows voice from reading punctuation
+      const voice = this.getBestVoice(targetLang);
+      if (voice) {
+        utterance.voice = voice;
+      }
 
       utterance.onend = () => resolve();
       utterance.onerror = (err) => {
