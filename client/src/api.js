@@ -235,8 +235,16 @@ class ApiClient {
     }
   }
 
-  async addCustomWord(word, translation, cefrLevel = 'A1', example = '') {
-    return await localService.addCustomWord(word, translation, cefrLevel, example);
+  async addCustomWord(word, translation, cefrLevel = 'A1', example = '', phonetic = '', partOfSpeech = 'kelime') {
+    return await localService.addCustomWord(word, translation, cefrLevel, example, phonetic, partOfSpeech);
+  }
+
+  async loadWordPack(level = 'A1') {
+    return await localService.loadWordPack(level);
+  }
+
+  async searchOnlineDictionary(word) {
+    return await localService.fetchOnlineWord(word);
   }
 
   // Reading Comprehension
@@ -381,8 +389,16 @@ class ApiClient {
     }
   }
 
-  async completeDailyTask(tasksId, taskId) {
-    return { success: true };
+  async completeDailyTask(taskId, completed = true) {
+    if (this.useLocal) return localService.completeDailyTask(taskId, completed);
+    try {
+      return await this.request('/daily-tasks/complete', {
+        method: 'POST',
+        body: JSON.stringify({ taskId, completed })
+      });
+    } catch (e) {
+      return localService.completeDailyTask(taskId, completed);
+    }
   }
 
   // Progress History & Reports

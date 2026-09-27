@@ -71,13 +71,18 @@ export class DashboardView {
     ];
 
     const tasks = dailyTasks?.tasks || [
-      { id: 'task-vocab', skill: 'vocabulary', description: 'A1 Temel Kelime Kartlarından 5 tanesini incele ve tekrar et', targetView: 'vocabulary' },
-      { id: 'task-grammar', skill: 'grammar', description: 'Gramer Akademisinden 1 başlangıç konusunu ve kurallarını oku', targetView: 'grammar' },
-      { id: 'task-reading', skill: 'reading', description: '1 başlangıç (A1) okuma metnini incele ve sorularını yanıtla', targetView: 'reading' },
-      { id: 'task-speaking', skill: 'speaking', description: '1 günlük konuşma senaryosunu sesli olarak dene', targetView: 'speaking' }
+      { id: 'task-vocab', skill: 'vocabulary', description: 'Kelime Kartlarından en az 5 tanesini tekrar et veya yeni kelime öğren', targetView: 'vocabulary' },
+      { id: 'task-grammar', skill: 'grammar', description: 'Gramer Akademisinden 1 konuyu ve interaktif alıştırmasını tamamla', targetView: 'grammar' },
+      { id: 'task-reading', skill: 'reading', description: '1 okuma metnini incele ve anlama sorularını yanıtla', targetView: 'reading' },
+      { id: 'task-speaking', skill: 'speaking', description: '1 konuşma senaryosunda sesli pratik yap veya diyalog kur', targetView: 'speaking' }
     ];
 
     const completedTaskIds = new Set(dailyTasks?.completed_tasks || []);
+    const completedCount = completedTaskIds.size;
+    const totalTasks = tasks.length;
+    const percentDone = Math.round((completedCount / Math.max(totalTasks, 1)) * 100);
+    const nextIncompleteTask = tasks.find(t => !completedTaskIds.has(t.id));
+    this.nextTargetView = nextIncompleteTask ? (nextIncompleteTask.targetView || nextIncompleteTask.skill) : 'vocabulary';
 
     this.container.innerHTML = `
       <div class="dashboard-grid">
@@ -95,7 +100,7 @@ export class DashboardView {
                 <span class="btn-badge">10 Beceri</span>
               </button>
               <button class="btn btn-secondary" id="hero-routine-btn">
-                <span>⚡ Günün Rutinine Başla (${tasks.length - completedTaskIds.size} görev kaldı)</span>
+                <span>⚡ ${completedCount >= totalTasks ? 'Günün Rutini Tamamlandı! 🎉' : `Günün Rutinine Başla (${totalTasks - completedCount} görev kaldı)`}</span>
               </button>
             </div>
           </div>
@@ -160,20 +165,38 @@ export class DashboardView {
               </button>
             </div>
 
+            <!-- Routine Progress Widget -->
+            <div class="routine-progress-widget">
+              <div class="routine-progress-header">
+                <span class="routine-progress-title">
+                  <strong>İlerleme:</strong> ${completedCount} / ${totalTasks} Görev Tamamlandı (%${percentDone})
+                </span>
+                <span class="routine-reward-tag">${percentDone === 100 ? '🎉 +50 XP Bonus Eklendi!' : '+20 XP / Görev'}</span>
+              </div>
+              <div class="routine-bar-outer">
+                <div class="routine-bar-inner" style="width: ${percentDone}%;"></div>
+              </div>
+              ${percentDone === 100 ? `
+                <div class="routine-celebration">
+                  ✨ <strong>Tebrikler!</strong> Bugünün tüm hedeflerini tamamlayarak serinizi korudunuz ve günlük bonusu kazandınız!
+                </div>
+              ` : ''}
+            </div>
+
             <div class="tasks-list">
               ${tasks.map((task) => {
                 const isDone = completedTaskIds.has(task.id);
                 return `
                   <div class="task-item ${isDone ? 'completed' : ''}" data-task-id="${task.id}" data-view="${task.targetView || task.skill}">
-                    <div class="task-checkbox ${isDone ? 'checked' : ''}">
+                    <div class="task-checkbox ${isDone ? 'checked' : ''}" title="${isDone ? 'Tamamlandı olarak işaretlendi (kaldırmak için tıkla)' : 'Tamamlandı olarak işaretle'}">
                       ${isDone ? '✓' : ''}
                     </div>
                     <div class="task-content">
-                      <div class="task-title">${task.description}</div>
+                      <div class="task-title ${isDone ? 'text-strikethrough' : ''}">${task.description}</div>
                       <div class="task-skill-tag cefr-tag A1">${task.skill.toUpperCase()}</div>
                     </div>
-                    <button class="btn btn-secondary btn-sm task-action-btn">
-                      ${isDone ? 'Tekrar Et' : 'Başla →'}
+                    <button class="btn ${isDone ? 'btn-secondary' : 'btn-primary'} btn-sm task-action-btn">
+                      ${isDone ? 'Tekrar Aç' : 'Başla →'}
                     </button>
                   </div>
                 `;
@@ -236,7 +259,7 @@ export class DashboardView {
             <div class="lab-card card" data-view="vocabulary">
               <div class="lab-icon">🗂️</div>
               <div class="lab-title">Kelime Kartları (SRS)</div>
-              <div class="lab-desc">Aralıklı tekrar algoritmasıyla kalıcı kelime ezberi ve örnek cümleler.</div>
+              <div class="lab-desc">155+ kelimelik CEFR arşivi ve sınırsız canlı internet sözlüğü ile kalıcı öğrenim.</div>
               <button class="btn btn-secondary btn-sm">Kelimeleri Aç →</button>
             </div>
             <div class="lab-card card" data-view="speaking">
@@ -259,13 +282,49 @@ export class DashboardView {
     });
 
     document.getElementById('hero-routine-btn')?.addEventListener('click', () => {
-      state.setView('grammar');
+      state.setView(this.nextTargetView || 'vocabulary');
     });
 
     document.getElementById('goto-assessment-btn')?.addEventListener('click', () => {
       state.setView('assessment');
     });
 
+    document.getElementById('refresh-tasks-btn')?.addEventListener('click', async () => {
+      await this.render(this.container);
+      state.showToast('Görevler güncellendi.', 'info');
+    });
+
+    // Checkbox click: toggle completion
+    document.querySelectorAll('.task-checkbox').forEach(cb => {
+      cb.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const item = cb.closest('.task-item');
+        if (!item) return;
+        const taskId = item.dataset.taskId;
+        const wasDone = cb.classList.contains('checked');
+        const willBeDone = !wasDone;
+        
+        try {
+          await api.completeDailyTask(taskId, willBeDone);
+          state.showToast(willBeDone ? '🎯 Görev tamamlandı! +20 XP eklendi.' : 'Görev işareti kaldırıldı.', willBeDone ? 'success' : 'info');
+          await this.render(this.container);
+        } catch (err) {
+          state.showToast('Görev durumu güncellenemedi: ' + err.message, 'error');
+        }
+      });
+    });
+
+    // Action button click
+    document.querySelectorAll('.task-action-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const item = btn.closest('.task-item');
+        const view = item?.dataset.view;
+        if (view) state.setView(view);
+      });
+    });
+
+    // Task row click
     document.querySelectorAll('.task-item').forEach(item => {
       item.addEventListener('click', () => {
         const view = item.dataset.view;

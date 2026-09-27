@@ -186,18 +186,22 @@ class LocalService {
     const zeroErrors = [];
 
     // Başlangıç A1 kelime kartları
-    const vocab = (staticData.vocabulary_items || []).map((v, i) => ({
-      ...v,
-      id: v.id || i + 1,
-      examples: typeof v.examples === 'string' ? JSON.parse(v.examples || '[]') : v.examples,
-      synonyms: typeof v.synonyms === 'string' ? JSON.parse(v.synonyms || '[]') : v.synonyms,
-      antonyms: typeof v.antonyms === 'string' ? JSON.parse(v.antonyms || '[]') : v.antonyms,
-      collocations: typeof v.collocations === 'string' ? JSON.parse(v.collocations || '[]') : v.collocations,
-      interval: 0,
-      ease_factor: 2.5,
-      repetitions: 0,
-      due: true
-    }));
+    const vocab = (staticData.vocabulary_items || []).map((v, i) => {
+      const ex = (typeof v.examples === 'string' ? JSON.parse(v.examples || '[]') : v.examples) || v.example_sentences || [];
+      return {
+        ...v,
+        id: v.id || i + 1,
+        examples: ex,
+        example_sentences: ex,
+        synonyms: typeof v.synonyms === 'string' ? JSON.parse(v.synonyms || '[]') : (v.synonyms || []),
+        antonyms: typeof v.antonyms === 'string' ? JSON.parse(v.antonyms || '[]') : (v.antonyms || []),
+        collocations: typeof v.collocations === 'string' ? JSON.parse(v.collocations || '[]') : (v.collocations || []),
+        interval: 0,
+        ease_factor: 2.5,
+        repetitions: 0,
+        due: true
+      };
+    });
 
     localStorage.setItem(prefix + 'stats', JSON.stringify(zeroStats));
     localStorage.setItem(prefix + 'skills', JSON.stringify(zeroSkills));
@@ -205,13 +209,123 @@ class LocalService {
     localStorage.setItem(prefix + 'srs_items', JSON.stringify(vocab));
     localStorage.removeItem(prefix + 'latest_assessment');
     localStorage.setItem(prefix + 'completed_tasks', JSON.stringify([]));
+    localStorage.setItem(prefix + 'daily_tasks_date', new Date().toISOString().slice(0, 10));
+  }
+
+  syncVocabularyArchive(username) {
+    const user = username || (this.currentUser ? this.currentUser.username : 'misafir');
+    const prefix = `linguaforge_u_${user}_`;
+    try {
+      const raw = localStorage.getItem(prefix + 'srs_items');
+      let currentItems = raw ? JSON.parse(raw) : [];
+      const existingWordSet = new Set(currentItems.map(i => (i.word || '').toLowerCase()));
+      
+      const newItemsToAdd = [];
+      const masterList = staticData.vocabulary_items || [];
+      
+      masterList.forEach((v, idx) => {
+        if (!existingWordSet.has((v.word || '').toLowerCase())) {
+          const ex = (typeof v.examples === 'string' ? JSON.parse(v.examples || '[]') : v.examples) || v.example_sentences || [];
+          newItemsToAdd.push({
+            ...v,
+            id: v.id || 1000 + idx,
+            examples: ex,
+            example_sentences: ex,
+            synonyms: typeof v.synonyms === 'string' ? JSON.parse(v.synonyms || '[]') : (v.synonyms || []),
+            antonyms: typeof v.antonyms === 'string' ? JSON.parse(v.antonyms || '[]') : (v.antonyms || []),
+            collocations: typeof v.collocations === 'string' ? JSON.parse(v.collocations || '[]') : (v.collocations || []),
+            interval: 0,
+            ease_factor: 2.5,
+            repetitions: 0,
+            due: (currentItems.length < 5) || (v.cefr_level === 'A1' && currentItems.filter(x => x.due).length < 20)
+          });
+        }
+      });
+
+      if (newItemsToAdd.length > 0) {
+        currentItems = currentItems.concat(newItemsToAdd);
+        localStorage.setItem(prefix + 'srs_items', JSON.stringify(currentItems));
+      }
+    } catch (e) {
+      console.warn('Error syncing vocabulary archive:', e);
+    }
   }
 
   ensureUserStorage(username) {
     const prefix = `linguaforge_u_${username}_`;
     if (!localStorage.getItem(prefix + 'stats') || !localStorage.getItem(prefix + 'skills')) {
       this.initZeroUserStorage(username);
+      return;
     }
+    this.syncVocabularyArchive(username);
+  }
+
+  recordDailyTaskProgress(taskId) {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const lastDailyDate = this.getUserData('daily_tasks_date');
+      let completedTasks = this.getUserData('completed_tasks') || [];
+      if (lastDailyDate !== today) {
+        completedTasks = [];
+        this.setUserData('daily_tasks_date', today);
+      }
+
+      if (!completedTasks.includes(taskId)) {
+        completedTasks.push(taskId);
+        this.setUserData('completed_tasks', completedTasks);
+
+        const stats = this.getUserData('stats') || { xp: 0 };
+        stats.xp = (stats.xp || 0) + 20;
+
+        let bonusAwarded = false;
+        if (completedTasks.length >= 4 && !this.getUserData('daily_bonus_claimed_' + today)) {
+          stats.xp += 50;
+          this.setUserData('daily_bonus_claimed_' + today, true);
+          bonusAwarded = true;
+        }
+
+        this.setUserData('stats', stats);
+        return { success: true, taskId, completedTasks, xpGained: bonusAwarded ? 70 : 20, bonusAwarded };
+      }
+      return { success: true, taskId, completedTasks, xpGained: 0 };
+    } catch (e) {
+      console.warn('Error recording daily task progress:', e);
+      return { success: false };
+    }
+  }
+
+  async completeDailyTask(taskId, completed = true) {
+    const today = new Date().toISOString().slice(0, 10);
+    const lastDailyDate = this.getUserData('daily_tasks_date');
+    let completedTasks = this.getUserData('completed_tasks') || [];
+    if (lastDailyDate !== today) {
+      completedTasks = [];
+      this.setUserData('daily_tasks_date', today);
+    }
+
+    const stats = this.getUserData('stats') || { xp: 0 };
+
+    if (completed) {
+      if (!completedTasks.includes(taskId)) {
+        completedTasks.push(taskId);
+        stats.xp = (stats.xp || 0) + 20;
+
+        if (completedTasks.length >= 4 && !this.getUserData('daily_bonus_claimed_' + today)) {
+          stats.xp += 50;
+          this.setUserData('daily_bonus_claimed_' + today, true);
+        }
+      }
+    } else {
+      if (completedTasks.includes(taskId)) {
+        completedTasks = completedTasks.filter(id => id !== taskId);
+        stats.xp = Math.max(0, (stats.xp || 0) - 20);
+      }
+    }
+
+    this.setUserData('completed_tasks', completedTasks);
+    this.setUserData('stats', stats);
+
+    return { success: true, completedTasks, stats };
   }
 
   // Dashboard
@@ -219,6 +333,8 @@ class LocalService {
     if (!this.currentUser) {
       throw new Error('AUTH_REQUIRED');
     }
+
+    this.syncVocabularyArchive();
 
     const stats = this.getUserData('stats') || {
       xp: 0,
@@ -253,6 +369,15 @@ class LocalService {
       results: { overallCEFR: 'A1' }
     };
 
+    const today = new Date().toISOString().slice(0, 10);
+    const lastDailyDate = this.getUserData('daily_tasks_date');
+    let completedTasks = this.getUserData('completed_tasks') || [];
+    if (lastDailyDate !== today) {
+      completedTasks = [];
+      this.setUserData('completed_tasks', completedTasks);
+      this.setUserData('daily_tasks_date', today);
+    }
+
     return {
       user: {
         username: this.currentUser.username,
@@ -262,13 +387,14 @@ class LocalService {
       stats,
       skills,
       dailyTasks: {
+        date: today,
         tasks: [
-          { id: 'task-vocab', skill: 'vocabulary', description: 'A1 Temel Kelime Kartlarından 5 tanesini incele ve tekrar et', targetView: 'vocabulary' },
-          { id: 'task-grammar', skill: 'grammar', description: 'Gramer Akademisinden 1 başlangıç konusunu ve kurallarını oku', targetView: 'grammar' },
-          { id: 'task-reading', skill: 'reading', description: '1 başlangıç (A1) okuma metnini incele ve sorularını yanıtla', targetView: 'reading' },
-          { id: 'task-speaking', skill: 'speaking', description: '1 günlük konuşma senaryosunu sesli olarak dene', targetView: 'speaking' }
+          { id: 'task-vocab', skill: 'vocabulary', description: 'Kelime Kartlarından en az 5 tanesini tekrar et veya yeni kelime öğren', targetView: 'vocabulary' },
+          { id: 'task-grammar', skill: 'grammar', description: 'Gramer Akademisinden 1 konuyu ve interaktif alıştırmasını tamamla', targetView: 'grammar' },
+          { id: 'task-reading', skill: 'reading', description: '1 okuma metnini incele ve anlama sorularını yanıtla', targetView: 'reading' },
+          { id: 'task-speaking', skill: 'speaking', description: '1 konuşma senaryosunda sesli pratik yap veya diyalog kur', targetView: 'speaking' }
         ],
-        completed_tasks: this.getUserData('completed_tasks') || []
+        completed_tasks: completedTasks
       },
       recentErrors: errors.filter(e => !e.resolved),
       reviewStats: { dueToday: dueCount, totalItems: srs.length },
@@ -511,6 +637,7 @@ class LocalService {
       stats.total_grammar_mastered = (stats.total_grammar_mastered || 0) + 1;
     }
     this.setUserData('stats', stats);
+    this.recordDailyTaskProgress('task-grammar');
 
     if (!isCorrect) {
       const errors = this.getUserData('errors') || [];
@@ -537,16 +664,34 @@ class LocalService {
 
   // Vocabulary
   async getVocabularyItems() {
-    const items = (this.getUserData('srs_items') || []).map(v => ({
-      ...v,
-      examples: typeof v.examples === 'string' ? JSON.parse(v.examples) : v.examples,
-      collocations: typeof v.collocations === 'string' ? JSON.parse(v.collocations) : v.collocations
-    }));
+    this.syncVocabularyArchive();
+    const items = (this.getUserData('srs_items') || []).map(v => {
+      const ex = (typeof v.examples === 'string' ? JSON.parse(v.examples) : v.examples) || v.example_sentences || [];
+      const col = (typeof v.collocations === 'string' ? JSON.parse(v.collocations) : v.collocations) || [];
+      return {
+        ...v,
+        examples: ex,
+        example_sentences: ex,
+        collocations: col
+      };
+    });
     return { items, total: items.length };
   }
 
   async getReviewQueue() {
-    const items = (this.getUserData('srs_items') || []).filter(i => i.due);
+    this.syncVocabularyArchive();
+    const items = (this.getUserData('srs_items') || [])
+      .filter(i => i.due)
+      .map(v => {
+        const ex = (typeof v.examples === 'string' ? JSON.parse(v.examples) : v.examples) || v.example_sentences || [];
+        const col = (typeof v.collocations === 'string' ? JSON.parse(v.collocations) : v.collocations) || [];
+        return {
+          ...v,
+          examples: ex,
+          example_sentences: ex,
+          collocations: col
+        };
+      });
     return { items, dueToday: items.length };
   }
 
@@ -565,10 +710,122 @@ class LocalService {
     stats.xp = (stats.xp || 0) + (rating >= 2 ? 10 : 3);
     stats.total_words_learned = (stats.total_words_learned || 0) + (rating >= 2 ? 1 : 0);
     this.setUserData('stats', stats);
+    this.recordDailyTaskProgress('task-vocab');
     return { success: true };
   }
 
-  async addCustomWord(word, translation, cefrLevel = 'A1', example = '') {
+  async loadWordPack(level = 'A1') {
+    this.syncVocabularyArchive();
+    const items = this.getUserData('srs_items') || [];
+    let activatedCount = 0;
+
+    items.forEach(item => {
+      const match = (level === 'all') || (item.cefr_level && item.cefr_level.toUpperCase() === level.toUpperCase());
+      if (match) {
+        if (!item.due) {
+          item.due = true;
+          activatedCount++;
+        }
+      }
+    });
+
+    if (activatedCount === 0) {
+      items.forEach(item => {
+        const match = (level === 'all') || (item.cefr_level && item.cefr_level.toUpperCase() === level.toUpperCase());
+        if (match) {
+          item.due = true;
+          activatedCount++;
+        }
+      });
+    }
+
+    this.setUserData('srs_items', items);
+    const dueCount = items.filter(i => i.due).length;
+    return { success: true, activatedCount, totalDue: dueCount, level };
+  }
+
+  async fetchOnlineWord(rawWord) {
+    const clean = (rawWord || '').trim().toLowerCase().replace(/[^a-z-]/g, '');
+    if (!clean) throw new Error('Lütfen geçerli bir İngilizce kelime girin.');
+
+    // 1. Fetch comprehensive definitions, phonetics, audio, examples from Free Dictionary API
+    let dictData = null;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json) && json.length > 0) {
+          dictData = json[0];
+        }
+      }
+    } catch (e) {
+      console.warn('Free Dictionary API call failed or timed out:', e);
+    }
+
+    // 2. Fetch Turkish Translation (Google Translate)
+    let trTranslation = '';
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(clean)}`;
+      const trRes = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (trRes.ok) {
+        const data = await trRes.json();
+        trTranslation = data?.[0]?.[0]?.[0] || '';
+      }
+    } catch (e) {}
+
+    let phonetic = dictData?.phonetic || '';
+    let audioUrl = '';
+    if (dictData?.phonetics && Array.isArray(dictData.phonetics)) {
+      for (const p of dictData.phonetics) {
+        if (!phonetic && p.text) phonetic = p.text;
+        if (!audioUrl && p.audio) audioUrl = p.audio;
+      }
+    }
+
+    let primaryPos = 'kelime';
+    let definitionEn = '';
+    let exampleEn = '';
+    const allMeanings = [];
+
+    if (dictData?.meanings && Array.isArray(dictData.meanings)) {
+      primaryPos = dictData.meanings[0]?.partOfSpeech || 'kelime';
+      dictData.meanings.forEach(m => {
+        const defObj = m.definitions?.[0];
+        if (defObj) {
+          if (!definitionEn) definitionEn = defObj.definition || '';
+          if (!exampleEn && defObj.example) exampleEn = defObj.example;
+          allMeanings.push({
+            partOfSpeech: m.partOfSpeech,
+            definition: defObj.definition,
+            example: defObj.example || null,
+            synonyms: (m.synonyms || []).slice(0, 4)
+          });
+        }
+      });
+    }
+
+    return {
+      word: clean,
+      phonetic: phonetic || `/${clean}/`,
+      audioUrl: audioUrl || null,
+      part_of_speech: primaryPos,
+      definition_tr: trTranslation || 'Türkçe karşılığı',
+      definition_en: definitionEn || 'English definition not found',
+      example: exampleEn || '',
+      meanings: allMeanings,
+      foundOnline: !!dictData
+    };
+  }
+
+  async addCustomWord(word, translation, cefrLevel = 'A1', example = '', phonetic = '', partOfSpeech = 'kelime') {
     const items = this.getUserData('srs_items') || [];
     const cleanWord = (word || '').trim();
     if (!cleanWord) return null;
@@ -578,13 +835,18 @@ class LocalService {
       if (translation && (!existing.definition_tr || existing.definition_tr === '-')) {
         existing.definition_tr = translation;
       }
+      if (phonetic && !existing.phonetic) existing.phonetic = phonetic;
+      if (example && (!existing.examples || existing.examples.length === 0)) existing.examples = [example];
       this.setUserData('srs_items', items);
+      this.recordDailyTaskProgress('task-vocab');
       return existing;
     }
     const newItem = {
       id: Date.now() + Math.floor(Math.random() * 1000),
       word: cleanWord,
       definition_tr: translation || 'Tanım eklenmedi',
+      definition_en: '',
+      phonetic: phonetic || '',
       cefr_level: cefrLevel || 'A1',
       examples: example ? [example] : [],
       collocations: [],
@@ -592,11 +854,12 @@ class LocalService {
       repetitions: 0,
       ease_factor: 2.5,
       interval: 1,
-      part_of_speech: 'word',
+      part_of_speech: partOfSpeech || 'kelime',
       created_at: new Date().toISOString()
     };
     items.unshift(newItem);
     this.setUserData('srs_items', items);
+    this.recordDailyTaskProgress('task-vocab');
     return newItem;
   }
 
@@ -637,6 +900,7 @@ class LocalService {
     const stats = this.getUserData('stats') || { xp: 0 };
     stats.xp = (stats.xp || 0) + (score >= 70 ? 30 : 15);
     this.setUserData('stats', stats);
+    this.recordDailyTaskProgress('task-reading');
 
     return {
       score,
@@ -709,6 +973,7 @@ class LocalService {
     const stats = this.getUserData('stats') || { xp: 0 };
     stats.xp = (stats.xp || 0) + 30;
     this.setUserData('stats', stats);
+    this.recordDailyTaskProgress('task-writing');
 
     return {
       overallScore: score,
@@ -738,6 +1003,7 @@ class LocalService {
   async getSpeakingScenario(id) {
     const list = await this.getSpeakingScenarios();
     const scenario = list.find(s => s.id === parseInt(id, 10)) || list[0];
+    this.recordDailyTaskProgress('task-speaking');
     return { scenario };
   }
 
