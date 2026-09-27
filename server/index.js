@@ -258,6 +258,8 @@ app.get('/api/grammar/topic/:slug', ensureUser, (req, res) => {
       },
       exercises: exercises.map(e => ({
         ...e,
+        prompt: e.question || e.prompt || '',
+        question: e.question || e.prompt || '',
         options: e.options ? JSON.parse(e.options) : null
       })),
       progress: progress || { mastery_level: 0, total_attempts: 0, correct_attempts: 0 }

@@ -53,15 +53,18 @@ export class WritingView {
           </div>
 
           <div class="prompts-list">
-            ${this.prompts.map(pr => `
-              <div class="prompt-item ${p && p.id === pr.id ? 'active' : ''}" data-id="${pr.id}">
-                <div class="prompt-top">
-                  <span class="cefr-tag ${pr.cefr_level || 'A1'}">${pr.cefr_level || 'A1'}</span>
-                  <span class="prompt-type">${(pr.type || '').toUpperCase()}</span>
+            ${this.prompts.map(pr => {
+              const shortText = pr.prompt.length > 70 ? pr.prompt.slice(0, 67) + '...' : pr.prompt;
+              return `
+                <div class="prompt-item ${p && p.id === pr.id ? 'active' : ''}" data-id="${pr.id}">
+                  <div class="prompt-top">
+                    <span class="cefr-tag ${pr.cefr_level || 'A1'}">${pr.cefr_level || 'A1'}</span>
+                    <span class="prompt-type">${(pr.type || '').toUpperCase()}</span>
+                  </div>
+                  <div class="prompt-short">${shortText}</div>
                 </div>
-                <div class="prompt-short">${pr.prompt.slice(0, 65)}...</div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </aside>
 

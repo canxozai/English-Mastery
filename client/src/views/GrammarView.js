@@ -207,17 +207,31 @@ export class GrammarView {
     const ex = this.exercises[this.currentExerciseIndex];
     if (!ex) return '';
 
+    const promptText = ex.prompt || ex.question || ex.sentence || 'Cümle yüklenemedi.';
     const options = ex.options ? (typeof ex.options === 'string' ? JSON.parse(ex.options) : ex.options) : null;
+
+    let instruction = 'Aşağıdaki alıştırmayı tamamlayın:';
+    if (ex.exercise_type === 'fill_blank') {
+      instruction = 'Boşluğa gelecek uygun kelime veya çekimi yazın:';
+    } else if (ex.exercise_type === 'multiple_choice') {
+      instruction = 'Aşağıdaki cümleyi en uygun seçenekle tamamlayın:';
+    } else if (ex.exercise_type === 'error_correction') {
+      instruction = 'Cümledeki hatayı bulun ve cümlenin doğru halini yazın:';
+    } else if (ex.exercise_type === 'sentence_transform') {
+      instruction = 'Cümleyi parantez içindeki talimata göre dönüştürün:';
+    } else if (ex.exercise_type === 'sentence_creation') {
+      instruction = 'İstenen kurala uygun bir İngilizce cümle kurun:';
+    }
 
     return `
       <div class="exercise-sandbox">
         <div class="exercise-prompt-wrap">
-          <div class="exercise-instruction">Aşağıdaki cümleyi uygun seçenekle tamamlayın:</div>
-          <div class="exercise-prompt">${ex.prompt}</div>
+          <div class="exercise-instruction">${instruction}</div>
+          <div class="exercise-prompt">${promptText}</div>
         </div>
 
         <!-- Vocabulary & Structure Hints -->
-        ${wordInspector.renderQuestionVocabBar({ question: ex.prompt, options: options, id: ex.id })}
+        ${wordInspector.renderQuestionVocabBar({ question: promptText, options: options, id: ex.id })}
 
         ${options ? `
           <div class="exercise-options-grid">
@@ -230,7 +244,7 @@ export class GrammarView {
           </div>
         ` : `
           <div class="fill-blank-wrap">
-            <input type="text" class="form-input exercise-input" id="exercise-input" placeholder="Cevabınızı buraya yazın..." />
+            <input type="text" class="form-input exercise-input" id="exercise-input" placeholder="Cevabınızı buraya yazın..." autocomplete="off" />
           </div>
         `}
 
@@ -284,12 +298,22 @@ export class GrammarView {
       });
     });
 
-    // Exercise input change
+    // Exercise input change and Enter key submit
     const exInput = document.getElementById('exercise-input');
     exInput?.addEventListener('input', (e) => {
       this.selectedOption = e.target.value.trim();
       const checkBtn = document.getElementById('btn-check-exercise');
       if (checkBtn) checkBtn.disabled = !this.selectedOption;
+    });
+    exInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value.trim();
+        if (val) {
+          this.selectedOption = val;
+          this.checkExerciseAnswer();
+        }
+      }
     });
 
     // Check exercise

@@ -175,10 +175,41 @@ class SpeechService {
     });
   }
 
+  get hasRecognition() {
+    return !!this.recognition;
+  }
+
+  get hasSynthesis() {
+    return !!this.synth;
+  }
+
+  stop() {
+    this.cancel();
+  }
+
   cancel() {
     if (this.synth) {
       this.synth.cancel();
     }
+  }
+
+  /**
+   * Convenience listen method used by SpeakingView and PronunciationView
+   */
+  listen(onResult, onEnd, lang = 'en-US') {
+    return this.startListening({
+      onResult: (res) => {
+        if (typeof onResult === 'function') {
+          onResult(res.final || res.interim || '');
+        }
+      },
+      onEnd: (final) => {
+        if (typeof onEnd === 'function') {
+          onEnd(final);
+        }
+      },
+      lang
+    });
   }
 
   /**
@@ -190,6 +221,11 @@ class SpeechService {
       return;
     }
 
+    // Stop previous instance if already active
+    try {
+      this.recognition.abort();
+    } catch (e) {}
+
     this.recognition.lang = lang;
     let finalTranscript = '';
 
@@ -197,7 +233,7 @@ class SpeechService {
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+          finalTranscript += (finalTranscript ? ' ' : '') + event.results[i][0].transcript.trim();
         } else {
           interim += event.results[i][0].transcript;
         }
@@ -212,7 +248,7 @@ class SpeechService {
     };
 
     this.recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      console.warn('Speech recognition error:', event.error);
       if (onError) onError(event);
     };
 
@@ -223,7 +259,7 @@ class SpeechService {
     try {
       this.recognition.start();
     } catch (e) {
-      console.warn('Recognition already started or error:', e);
+      console.warn('Recognition start caught error:', e);
     }
   }
 
@@ -239,10 +275,16 @@ class SpeechService {
    * Calculate speech accuracy compared to target sentence
    */
   calculateSimilarity(spoken, target) {
-    const sWords = spoken.toLowerCase().replace(/[^\w\s]/g, '').trim().split(/\s+/);
-    const tWords = target.toLowerCase().replace(/[^\w\s]/g, '').trim().split(/\s+/);
+    if (!spoken || !target) return 0;
+    const cleanS = String(spoken).toLowerCase().replace(/[^\w\s]/g, '').trim();
+    const cleanT = String(target).toLowerCase().replace(/[^\w\s]/g, '').trim();
 
-    if (tWords.length === 0) return 0;
+    if (!cleanS || !cleanT) return 0;
+
+    const sWords = cleanS.split(/\s+/).filter(Boolean);
+    const tWords = cleanT.split(/\s+/).filter(Boolean);
+
+    if (tWords.length === 0 || sWords.length === 0) return 0;
 
     let matched = 0;
     const targetSet = [...tWords];
@@ -255,7 +297,7 @@ class SpeechService {
       }
     }
 
-    const precision = matched / Math.max(sWords.length, 1);
+    const precision = matched / sWords.length;
     const recall = matched / tWords.length;
     const f1 = (precision + recall) > 0 ? (2 * precision * recall) / (precision + recall) : 0;
 

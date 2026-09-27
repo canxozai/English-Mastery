@@ -467,6 +467,8 @@ class LocalService {
       .filter(e => e.topic_id === topic.id)
       .map(e => ({
         ...e,
+        prompt: e.question || e.prompt || '',
+        question: e.question || e.prompt || '',
         options: typeof e.options === 'string' ? JSON.parse(e.options) : e.options
       }));
 
@@ -476,7 +478,31 @@ class LocalService {
   async submitGrammarExercise(exerciseId, answer) {
     const exercises = staticData.grammar_exercises || [];
     const ex = exercises.find(e => e.id === exerciseId) || exercises[0];
-    const isCorrect = answer.trim().toLowerCase() === ex.correct_answer.trim().toLowerCase();
+
+    const normalize = (str) => (str || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[.,!?;:"'’]/g, '')
+      .replace(/\.{2,}/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\bdon't\b|\bdont\b/g, 'do not')
+      .replace(/\bdoesn't\b|\bdoesnt\b/g, 'does not')
+      .replace(/\bdidn't\b|\bdidnt\b/g, 'did not')
+      .replace(/\bcan't\b|\bcant\b/g, 'cannot')
+      .replace(/\bisn't\b|\bisnt\b/g, 'is not')
+      .replace(/\baren't\b|\barent\b/g, 'are not')
+      .replace(/\bwasn't\b|\bwasnt\b/g, 'was not')
+      .replace(/\bweren't\b|\bwerent\b/g, 'were not')
+      .replace(/\bwon't\b|\bwont\b/g, 'will not')
+      .replace(/\bhasn't\b|\bhasnt\b/g, 'has not')
+      .replace(/\bhaven't\b|\bhavent\b/g, 'have not')
+      .trim();
+
+    const userClean = normalize(answer);
+    const correctClean = normalize(ex.correct_answer);
+
+    const isFreeResponse = ex.correct_answer === '[free response]' || ex.exercise_type === 'sentence_creation';
+    const isCorrect = isFreeResponse ? (userClean.length >= 3) : (userClean === correctClean);
 
     // Reward XP
     const stats = this.getUserData('stats') || { xp: 0 };
@@ -503,7 +529,7 @@ class LocalService {
     return {
       isCorrect,
       correctAnswer: ex.correct_answer,
-      feedback: isCorrect ? 'Tebrikler! Doğru cevap.' : `Yanlış. Doğru biçim: ${ex.correct_answer}`,
+      feedback: isCorrect ? 'Tebrikler! Doğru cevap (+15 XP).' : `Yanlış. Doğru biçim: ${ex.correct_answer}`,
       explanation: ex.explanation,
       explanationTr: ex.explanation_tr || ex.explanation
     };
