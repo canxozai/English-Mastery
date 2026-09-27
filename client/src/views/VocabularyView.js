@@ -1,6 +1,6 @@
 /**
- * Spaced Repetition (SRS) Vocabulary Studio & Massive Dictionary
- * SuperMemo SM-2 spaced recall algorithm + 155+ CEFR master archive + Live Internet Dictionary
+ * Spaced Repetition (SRS) Vocabulary Studio & Massive 1,000+ Dictionary
+ * SuperMemo SM-2 spaced recall algorithm + 1,000+ CEFR master archive + Live Internet Dictionary
  */
 import { api } from '../api.js';
 import { state } from '../state.js';
@@ -13,6 +13,9 @@ export class VocabularyView {
     this.reviewItems = [];
     this.currentIndex = 0;
     this.isCardFlipped = false;
+    this.reviewLevel = 'all'; // 'all' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1'
+    this.dueByLevel = { all: 0, A1: 0, A2: 0, B1: 0, B2: 0, C1: 0 };
+    this.totalByLevel = { all: 0, A1: 0, A2: 0, B1: 0, B2: 0, C1: 0 };
     this.dictionaryItems = [];
     this.searchQuery = '';
     this.levelFilter = 'all';
@@ -20,6 +23,7 @@ export class VocabularyView {
     this.isSearchingOnline = false;
     this.onlineSearchError = null;
     this.audioElement = null;
+    this.keyHandler = null;
   }
 
   async render(viewport) {
@@ -27,16 +31,12 @@ export class VocabularyView {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Aralıklı tekrar kelime kuyruğunuz ve 155+ kelimelik arşiv yükleniyor...</p>
+        <p>1.000+ kelimelik CEFR kütüphanesi ve çalışma kartlarınız yükleniyor...</p>
       </div>
     `;
 
     try {
-      const queueData = await api.getReviewQueue();
-      this.reviewItems = queueData.items || [];
-      this.currentIndex = 0;
-      this.isCardFlipped = false;
-
+      await this.loadQueueData();
       const dictData = await api.getVocabularyItems();
       this.dictionaryItems = dictData.items || [];
 
@@ -53,23 +53,40 @@ export class VocabularyView {
     }
   }
 
+  async loadQueueData() {
+    const queueData = await api.getReviewQueue(this.reviewLevel);
+    this.reviewItems = queueData.items || [];
+    this.dueByLevel = queueData.dueByLevel || { all: 0, A1: 0, A2: 0, B1: 0, B2: 0, C1: 0 };
+    this.totalByLevel = queueData.totalByLevel || { all: 0, A1: 0, A2: 0, B1: 0, B2: 0, C1: 0 };
+  }
+
+  getActiveReviewItems() {
+    if (!this.reviewLevel || this.reviewLevel === 'all') {
+      return this.reviewItems;
+    }
+    return this.reviewItems.filter(i => (i.cefr_level || '').toUpperCase() === this.reviewLevel.toUpperCase());
+  }
+
   renderContent() {
+    const totalLibraryCount = this.dictionaryItems.length || this.totalByLevel.all || 1002;
+    const totalDueCount = this.dueByLevel.all || this.reviewItems.length;
+
     this.container.innerHTML = `
       <div class="vocab-layout">
         <!-- Mode Switcher & Stats Header -->
         <div class="vocab-header card">
           <div class="vocab-header-left">
             <h1 class="vocab-title">Akıllı Kelime Kartları & Sözlük Arşivi</h1>
-            <p class="vocab-subtitle">155+ kelimelik CEFR kütüphanesi & canlı internet sözlüğü ile kalıcı kelime hafızası</p>
+            <p class="vocab-subtitle">1.000+ kelimelik devasa CEFR arşivi, seviye bazlı çalışma & canlı internet sözlüğü</p>
           </div>
           <div class="vocab-mode-toggles">
             <button class="btn ${this.mode === 'review' ? 'btn-primary' : 'btn-secondary'}" id="toggle-review-mode">
               <span>🗂️ Tekrar Bekleyenler</span>
-              <span class="btn-badge">${this.reviewItems.length}</span>
+              <span class="btn-badge">${totalDueCount}</span>
             </button>
             <button class="btn ${this.mode === 'dictionary' ? 'btn-primary' : 'btn-secondary'}" id="toggle-dict-mode">
               <span>📖 Kelime Kütüphanesi</span>
-              <span class="btn-badge">${this.dictionaryItems.length}</span>
+              <span class="btn-badge">${totalLibraryCount}</span>
             </button>
             <button class="btn ${this.mode === 'online' ? 'btn-primary' : 'btn-secondary'}" id="toggle-online-mode">
               <span>🌐 İnternet Sözlüğü</span>
@@ -82,16 +99,17 @@ export class VocabularyView {
           <div class="pack-toolbar-info">
             <span class="pack-toolbar-icon">⚡</span>
             <div>
-              <strong>Hızlı Kelime Paketi Yükle:</strong>
-              <span class="pack-toolbar-sub">Dilediğiniz seviyedeki kelimeleri anında çalışma kartlarınıza ekleyin</span>
+              <strong>Hızlı Seviye Paketi Çek:</strong>
+              <span class="pack-toolbar-sub">Arşivden dilediğiniz seviyeden 25 taze kelimeyi anında çalışma kuyruğuna alın</span>
             </div>
           </div>
           <div class="pack-btn-group">
-            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="A1" title="35 Temel A1 Kelimesi">📥 +A1 Temel (35)</button>
-            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="A2" title="35 Günlük Yaşam Kelimesi">📥 +A2 Günlük (35)</button>
-            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="B1" title="35 Orta Seviye Kelimesi">📥 +B1 Orta (35)</button>
-            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="B2" title="30 İleri Seviye Kelimesi">📥 +B2 İleri (30)</button>
-            <button class="btn btn-primary btn-sm pack-load-btn" data-level="all" title="Tüm 155 Kelimelik Arşivi Yükle">🌟 +Tüm Arşivi Yükle (155)</button>
+            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="A1" title="25 Temel A1 Kelimesi Çek">📥 +A1 Temel (25)</button>
+            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="A2" title="25 Günlük Yaşam Kelimesi Çek">📥 +A2 Günlük (25)</button>
+            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="B1" title="25 Orta Seviye Kelimesi Çek">📥 +B1 Orta (25)</button>
+            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="B2" title="25 İleri Seviye Kelimesi Çek">📥 +B2 İleri (25)</button>
+            <button class="btn btn-secondary btn-sm pack-load-btn" data-level="C1" title="25 Uzman Seviye Kelimesi Çek">📥 +C1 Uzman (25)</button>
+            <button class="btn btn-primary btn-sm pack-load-btn" data-level="all" title="Her Seviyeden Karışık 25 Kelime Çek">🌟 +Karışık (25)</button>
           </div>
         </div>
 
@@ -105,21 +123,71 @@ export class VocabularyView {
   }
 
   renderReviewArea() {
-    if (this.reviewItems.length === 0) {
+    const levels = [
+      { key: 'all', label: 'Tümü', icon: '🌟' },
+      { key: 'A1', label: 'A1 Temel', icon: '🌱' },
+      { key: 'A2', label: 'A2 Günlük', icon: '🌿' },
+      { key: 'B1', label: 'B1 Orta', icon: '🚀' },
+      { key: 'B2', label: 'B2 İleri', icon: '💎' },
+      { key: 'C1', label: 'C1 Uzman', icon: '👑' }
+    ];
+
+    const activeItems = this.getActiveReviewItems();
+
+    // 1. Toolbar with strict level filter tabs and shuffle / draw actions
+    const toolbarHtml = `
+      <div class="review-toolbar card">
+        <div class="review-level-tabs">
+          ${levels.map(lvl => {
+            const count = this.dueByLevel[lvl.key] !== undefined ? this.dueByLevel[lvl.key] : 0;
+            const isActive = this.reviewLevel === lvl.key;
+            return `
+              <button class="review-level-btn ${isActive ? 'active' : ''}" data-review-level="${lvl.key}" title="${lvl.label} seviyesindeki kelimeleri göster">
+                <span>${lvl.icon} ${lvl.label}</span>
+                <span class="badge-count">${count}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+
+        <div class="review-actions-group">
+          <button class="btn btn-secondary btn-sm btn-shuffle" id="btn-shuffle-cards" title="Kartların sırasını rastgele karıştır">
+            🔀 Karıştır (Shuffle)
+          </button>
+          <button class="btn btn-secondary btn-sm btn-draw-fresh" id="btn-draw-fresh" title="${this.reviewLevel === 'all' ? 'Tüm arşivden' : this.reviewLevel + ' seviyesinden'} 15 yeni kelime getir">
+            ✨ +15 Yeni Kelime
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btn-reset-level" title="${this.reviewLevel === 'all' ? 'Tüm kelimeleri' : this.reviewLevel + ' seviyesini'} sıfırlayıp baştan çalış">
+            🔄 Sıfırla
+          </button>
+        </div>
+      </div>
+    `;
+
+    // 2. If no words are due for this specific active level
+    if (activeItems.length === 0) {
+      const levelTitle = this.reviewLevel === 'all' ? 'Tüm Seviyelerde' : `${this.reviewLevel} Seviyesinde`;
+      const libraryCount = this.totalByLevel[this.reviewLevel] || this.totalByLevel.all || 0;
+
       return `
+        ${toolbarHtml}
         <div class="card empty-review-card">
           <div class="empty-icon">🎉</div>
-          <h2>Tebrikler! Tekrar Kuyruğu Temizlendi</h2>
-          <p>Şu anda tekrar etmeniz gereken kelime kartı kalmadı. Öğrenmeye devam etmek için yeni bir seviye paketi yükleyebilir veya internet sözlüğünden dilediğiniz kelimeyi aratıp ekleyebilirsiniz.</p>
-          
-          <div class="empty-pack-picker">
-            <h4>Hemen Yeni Kelimelerle Çalışmaya Devam Et:</h4>
-            <div class="empty-pack-buttons">
-              <button class="btn btn-secondary pack-load-btn" data-level="A1">📥 +A1 Temel Kelimeler (35)</button>
-              <button class="btn btn-secondary pack-load-btn" data-level="A2">📥 +A2 Günlük Yaşam (35)</button>
-              <button class="btn btn-secondary pack-load-btn" data-level="B1">📥 +B1 Orta Seviye (35)</button>
-              <button class="btn btn-secondary pack-load-btn" data-level="B2">📥 +B2 İleri Seviye (30)</button>
-              <button class="btn btn-primary pack-load-btn" data-level="all">🌟 +Tüm 155 Kelimelik Arşivi Yükle</button>
+          <h2>${levelTitle} Tekrar Bekleyen Kart Kalmadı!</h2>
+          <p>Harika ilerleme! ${this.reviewLevel === 'all' ? 'Kuyruktaki tüm kartları gözden geçirdiniz.' : `${this.reviewLevel} seviyesindeki tüm aktif kartlarınızı tamamladınız.`}</p>
+          <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
+            ${this.reviewLevel === 'all' ? '1.000+' : libraryCount} kelimelik kütüphanemizden hemen yeni kelimeler çekebilir veya çalıştığınız kelimeleri sıfırlayarak baştan tekrar edebilirsiniz.
+          </p>
+
+          <div class="empty-pack-picker" style="margin-top: 1.5rem;">
+            <h4>Hemen Çalışmaya Devam Edin:</h4>
+            <div class="empty-pack-buttons" style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+              <button class="btn btn-primary" id="btn-empty-draw-fresh">
+                ✨ Arşivden 15 Yeni ${this.reviewLevel === 'all' ? '' : this.reviewLevel} Kelimesi Getir
+              </button>
+              <button class="btn btn-secondary" id="btn-empty-reset-level">
+                🔄 ${this.reviewLevel === 'all' ? 'Tüm Kelimeleri' : this.reviewLevel + ' Seviyesini'} Baştan Sıfırla
+              </button>
             </div>
           </div>
 
@@ -131,29 +199,20 @@ export class VocabularyView {
       `;
     }
 
-    const item = this.reviewItems[this.currentIndex];
-    if (!item) {
-      return `
-        <div class="card empty-review-card">
-          <div class="empty-icon">✅</div>
-          <h2>Oturum Başarıyla Tamamlandı!</h2>
-          <p>Harika odaklanma! Bu oturumdaki tüm kelime kartlarını gözden geçirdiniz.</p>
-          <div class="empty-actions-row">
-            <button class="btn btn-primary" id="refresh-queue-btn">Kelimeleri Yenile</button>
-            <button class="btn btn-secondary pack-load-btn" data-level="all">Tüm Arşivden Daha Fazla Kelime Aç</button>
-          </div>
-        </div>
-      `;
+    if (this.currentIndex >= activeItems.length) {
+      this.currentIndex = 0;
     }
 
-    const examples = item.examples ? (typeof item.examples === 'string' ? JSON.parse(item.examples) : item.examples) : [];
+    const item = activeItems[this.currentIndex];
+    const examples = item.examples ? (typeof item.examples === 'string' ? JSON.parse(item.examples) : item.examples) : (item.example_sentences || []);
     const collocations = item.collocations ? (typeof item.collocations === 'string' ? JSON.parse(item.collocations) : item.collocations) : [];
 
     return `
+      ${toolbarHtml}
       <div class="flashcard-container">
         <!-- Progress Counter -->
         <div class="flashcard-counter">
-          <span>Kelime ${this.currentIndex + 1} / ${this.reviewItems.length}</span>
+          <span>${this.reviewLevel === 'all' ? 'Tüm Seviyeler' : `${this.reviewLevel} Seviyesi`}: Kelime <strong>${this.currentIndex + 1}</strong> / ${activeItems.length}</span>
           <span class="cefr-tag ${item.cefr_level || 'A1'}">${item.cefr_level || 'A1'}</span>
         </div>
 
@@ -169,7 +228,7 @@ export class VocabularyView {
             <div class="target-word">${item.word}</div>
             <div class="phonetic-ipa">${item.phonetic || ''}</div>
             
-            <div class="card-prompt-hint">Karta tıklayarak veya Boşluk tuşuna basarak Türkçe anlamını görün 🔄</div>
+            <div class="card-prompt-hint">Karta tıklayarak veya Boşluk (Space) tuşuna basarak Türkçe anlamını görün 🔄</div>
           </div>
 
           <!-- BACK FACE -->
@@ -212,11 +271,11 @@ export class VocabularyView {
 
         <!-- Rating Buttons (Only visible when card is flipped) -->
         <div class="rating-bar" id="rating-bar" style="visibility: ${this.isCardFlipped ? 'visible' : 'hidden'};">
-          <div class="rating-prompt">Bu kelimeyi ne kadar iyi hatırladınız?</div>
+          <div class="rating-prompt">Bu kelimeyi ne kadar iyi hatırladınız? (Klavye: 1, 2, 3, 4)</div>
           <div class="rating-buttons-group">
             <button class="rating-btn again" data-rating="0">
               <span class="rating-title">🔄 Tekrar Et</span>
-              <span class="rating-interval">&lt; 1 gün</span>
+              <span class="rating-interval">Kuyruğun sonuna ekle</span>
             </button>
             <button class="rating-btn hard" data-rating="1">
               <span class="rating-title">⚠️ Zorlandım</span>
@@ -243,7 +302,7 @@ export class VocabularyView {
       const matchesSearch = !this.searchQuery ||
         item.word.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
         (item.definition_tr && item.definition_tr.toLowerCase().includes(this.searchQuery.toLowerCase()));
-      const matchesLevel = this.levelFilter === 'all' || item.cefr_level === this.levelFilter;
+      const matchesLevel = this.levelFilter === 'all' || (item.cefr_level || '').toUpperCase() === this.levelFilter.toUpperCase();
       return matchesSearch && matchesLevel;
     });
 
@@ -251,16 +310,21 @@ export class VocabularyView {
       <div class="dict-container card">
         <div class="dict-toolbar">
           <div class="dict-search-row">
-            <input type="text" class="dict-search-input" id="dict-search-input" placeholder="Kütüphanede kelime ara (İngilizce veya Türkçe)..." value="${this.searchQuery}">
+            <input type="text" class="dict-search-input" id="dict-search-input" placeholder="1.000+ kelimelik kütüphanede ara (İngilizce veya Türkçe)..." value="${this.searchQuery}">
             <button class="btn btn-primary btn-sm" id="btn-quick-online-search" title="Bu kelimeyi internet sözlüğünde ara">
               🌐 İnternette Ara
             </button>
           </div>
           
           <div class="level-filter-tabs">
-            ${levels.map(l => `
-              <button class="level-tab ${this.levelFilter === l ? 'active' : ''}" data-level="${l}">${l === 'all' ? `Tümü (${this.dictionaryItems.length})` : l}</button>
-            `).join('')}
+            ${levels.map(l => {
+              const count = l === 'all' ? this.dictionaryItems.length : this.dictionaryItems.filter(x => (x.cefr_level || '').toUpperCase() === l).length;
+              return `
+                <button class="level-tab ${this.levelFilter === l ? 'active' : ''}" data-level="${l}">
+                  ${l === 'all' ? `Tümü (${count})` : `${l} (${count})`}
+                </button>
+              `;
+            }).join('')}
           </div>
         </div>
 
@@ -280,12 +344,12 @@ export class VocabularyView {
               ${filtered.length === 0 ? `
                 <tr>
                   <td colspan="6" style="text-align: center; padding: 2rem;">
-                    <p style="color: var(--text-muted); margin-bottom: 1rem;">"${this.searchQuery}" yerel arşivde bulunamadı.</p>
+                    <p style="color: var(--text-muted); margin-bottom: 1rem;">"${this.searchQuery}" arşivde bulunamadı.</p>
                     <button class="btn btn-primary" id="btn-search-online-now">🌐 İnternet Sözlüğünden Ara & Ekle</button>
                   </td>
                 </tr>
-              ` : filtered.map(item => {
-                const ex = item.examples ? (typeof item.examples === 'string' ? JSON.parse(item.examples) : item.examples) : [];
+              ` : filtered.slice(0, 150).map(item => {
+                const ex = item.examples ? (typeof item.examples === 'string' ? JSON.parse(item.examples) : item.examples) : (item.example_sentences || []);
                 return `
                   <tr>
                     <td class="dict-word-cell">
@@ -299,15 +363,24 @@ export class VocabularyView {
                       <div>${item.definition_en || '-'}</div>
                       ${ex.length > 0 ? `<div class="dict-row-example">"${ex[0]}"</div>` : ''}
                     </td>
-                    <td class="dict-actions-cell">
-                      <button class="tts-play-btn dict-tts" data-text="${item.word}" title="Telaffuzu Dinle">🔊</button>
-                      <button class="btn btn-secondary btn-xs add-to-due-btn" data-word="${item.word}" title="Kartlarıma Tekrar Olarak Ekle">➕ Kart</button>
+                    <td>
+                      <div class="dict-actions-cell">
+                        <button class="dict-tts-btn" data-word="${item.word}" title="Telaffuz Dinle">🔊</button>
+                        <button class="btn btn-secondary btn-xs add-to-due-btn" data-word="${item.word}" title="Bu kelimeyi çalışma kartlarına ekle">
+                          ➕ Çalış
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
+          ${filtered.length > 150 ? `
+            <div style="text-align: center; padding: 12px; font-size: 13px; color: var(--text-muted);">
+              Toplam ${filtered.length} kelimeden ilk 150 tanesi gösteriliyor. Aramayı daraltmak için yukarıdaki kutuyu kullanabilirsiniz.
+            </div>
+          ` : ''}
         </div>
       </div>
     `;
@@ -316,37 +389,37 @@ export class VocabularyView {
   renderOnlineArea() {
     return `
       <div class="online-dict-container card">
-        <div class="online-dict-header">
-          <h2>🌐 Canlı İnternet Sözlüğü (Free Dictionary API)</h2>
-          <p>Dünyadaki tüm İngilizce kelimeleri gerçek zamanlı olarak aratın, IPA telaffuzunu ve sesli okunuşunu dinleyin, tek tıkla hafıza kartlarınıza ekleyin.</p>
+        <div class="online-search-header">
+          <h2>🌐 Canlı İnternet Sözlüğü (500.000+ Kelime)</h2>
+          <p>Dünya çapındaki Oxford & Cambridge uyumlu API ile dilediğiniz herhangi bir İngilizce kelimenin sesli telaffuzunu, detaylı anlamlarını ve örneklerini anında getirin.</p>
+          
+          <div class="online-search-bar">
+            <input type="text" class="dict-search-input online-input" id="online-word-input" placeholder="Aramak istediğiniz İngilizce kelimeyi yazın (ör: serendipity, resilient, accomplish)..." value="${this.searchQuery}">
+            <button class="btn btn-primary" id="btn-submit-online-search">
+              🔍 Sözlükte Bul
+            </button>
+          </div>
         </div>
 
-        <div class="online-search-bar">
-          <input type="text" class="dict-search-input" id="online-search-input" placeholder="Aramak istediğiniz İngilizce kelimeyi yazın (örn: resilient, serendipity, achieve, phenomenon)..." value="${this.searchQuery}" />
-          <button class="btn btn-primary" id="btn-trigger-online-search">
-            🔍 İnternette Ara
-          </button>
-        </div>
-
-        <div class="online-search-status" id="online-search-status">
+        <div id="online-search-status">
           ${this.isSearchingOnline ? `
             <div class="online-loading-spinner">
               <div class="spinner"></div>
-              <p>İnternet sözlük arşivinden veriler ve sesli telaffuz getiriliyor...</p>
-            </div>
-          ` : ''}
-
-          ${this.onlineSearchError ? `
-            <div class="alert alert-warning">
-              ⚠️ ${this.onlineSearchError}
+              <p>"${this.searchQuery}" internet sözlük arşivinden getiriliyor...</p>
             </div>
           ` : ''}
         </div>
 
+        ${this.onlineSearchError ? `
+          <div class="card error-card" style="margin-top: 1rem;">
+            <p>${this.onlineSearchError}</p>
+          </div>
+        ` : ''}
+
         ${this.onlineSearchResult ? this.renderOnlineResultCard(this.onlineSearchResult) : `
-          <div class="online-suggestions">
-            <h4>💡 Popüler Arama Örnekleri:</h4>
-            <div class="suggestion-tags">
+          <div class="online-suggestions card" style="margin-top: 1.5rem; background: rgba(255, 255, 255, 0.02);">
+            <h4>💡 Popüler Arama Önerileri:</h4>
+            <div class="suggestion-chips">
               <span class="suggestion-chip" data-word="resilient">resilient</span>
               <span class="suggestion-chip" data-word="accomplish">accomplish</span>
               <span class="suggestion-chip" data-word="serendipity">serendipity</span>
@@ -447,20 +520,58 @@ export class VocabularyView {
       this.renderContent();
     });
 
-    document.getElementById('refresh-queue-btn')?.addEventListener('click', () => {
-      this.render(this.container);
+    // Review Level Filter Tabs (Strict Level Selection)
+    document.querySelectorAll('.review-level-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const lvl = btn.dataset.reviewLevel || 'all';
+        this.reviewLevel = lvl;
+        this.currentIndex = 0;
+        this.isCardFlipped = false;
+        await this.loadQueueData();
+        const body = document.getElementById('vocab-body');
+        if (body) body.innerHTML = this.renderReviewArea();
+        this.bindEvents();
+      });
     });
 
-    // Pack load buttons
+    // Shuffle active cards
+    document.getElementById('btn-shuffle-cards')?.addEventListener('click', () => {
+      this.shuffleActiveCards();
+    });
+
+    // Draw Fresh Words button (+15)
+    document.getElementById('btn-draw-fresh')?.addEventListener('click', async () => {
+      await this.handleDrawFreshWords(15);
+    });
+
+    document.getElementById('btn-empty-draw-fresh')?.addEventListener('click', async () => {
+      await this.handleDrawFreshWords(15);
+    });
+
+    // Reset Level Queue button
+    document.getElementById('btn-reset-level')?.addEventListener('click', async () => {
+      await this.handleResetLevel();
+    });
+
+    document.getElementById('btn-empty-reset-level')?.addEventListener('click', async () => {
+      await this.handleResetLevel();
+    });
+
+    // Pack load buttons (from top toolbar)
     document.querySelectorAll('.pack-load-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const level = btn.dataset.level || 'A1';
+        const level = btn.dataset.level || 'all';
         try {
-          const res = await api.loadWordPack(level);
-          state.showToast(`✅ ${level === 'all' ? 'Tüm 155 kelime' : level + ' seviyesi'} kelime kartlarına yüklendi! (${res.totalDue} kelime tekrar bekliyor)`, 'success');
-          await this.render(this.container);
+          const res = await api.drawFreshWords(level, 25);
+          state.showToast(`✅ ${level === 'all' ? 'Arşivden karışık' : level + ' seviyesinden'} ${res.activatedCount || 25} kelime çalışma kartlarınıza eklendi!`, 'success');
+          this.reviewLevel = level;
+          this.currentIndex = 0;
+          this.isCardFlipped = false;
+          await this.loadQueueData();
+          this.mode = 'review';
+          this.renderContent();
         } catch (e) {
-          state.showToast('Paket yüklenemedi: ' + e.message, 'error');
+          state.showToast('Paket çekilemedi: ' + e.message, 'error');
         }
       });
     });
@@ -472,36 +583,24 @@ export class VocabularyView {
         try {
           await api.addCustomWord(word, '', 'A1');
           state.showToast(`"${word}" kelime kartlarına eklendi!`, 'success');
-          const queue = await api.getReviewQueue();
-          this.reviewItems = queue.items || [];
+          await this.loadQueueData();
           const badge = document.querySelector('#toggle-review-mode .btn-badge');
-          if (badge) badge.textContent = this.reviewItems.length;
+          if (badge) badge.textContent = this.dueByLevel.all || this.reviewItems.length;
         } catch (e) {
           state.showToast('Eklenemedi: ' + e.message, 'error');
         }
       });
     });
 
-    // Flip card
+    // Card Flip & Rating Events
     const flashcard = document.getElementById('flashcard-element');
     flashcard?.addEventListener('click', () => this.toggleFlip());
 
-    document.getElementById('btn-manual-flip')?.addEventListener('click', () => this.toggleFlip());
-
-    // TTS on card
-    document.getElementById('card-tts-btn')?.addEventListener('click', (e) => {
+    document.getElementById('btn-manual-flip')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      const item = this.reviewItems[this.currentIndex];
-      if (item) speech.speak(item.word);
+      this.toggleFlip();
     });
 
-    document.getElementById('card-back-tts-btn')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const item = this.reviewItems[this.currentIndex];
-      if (item) speech.speak(item.word);
-    });
-
-    // Rating buttons
     document.querySelectorAll('.rating-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -510,87 +609,113 @@ export class VocabularyView {
       });
     });
 
-    // Dictionary search & filter
+    // TTS Pronunciation Buttons
+    document.getElementById('card-tts-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const activeItems = this.getActiveReviewItems();
+      const item = activeItems[this.currentIndex];
+      if (item) speech.speak(item.word);
+    });
+
+    document.getElementById('card-back-tts-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const activeItems = this.getActiveReviewItems();
+      const item = activeItems[this.currentIndex];
+      if (item) speech.speak(item.word);
+    });
+
+    // Dictionary TTS buttons
+    document.querySelectorAll('.dict-tts-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const w = btn.dataset.word;
+        if (w) speech.speak(w);
+      });
+    });
+
+    // Dictionary Level filter tabs
+    document.querySelectorAll('.level-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        this.levelFilter = tab.dataset.level;
+        const body = document.getElementById('vocab-body');
+        if (body) body.innerHTML = this.renderDictionaryArea();
+        this.bindEvents();
+      });
+    });
+
+    // Dictionary Search Input
     const searchInput = document.getElementById('dict-search-input');
     searchInput?.addEventListener('input', (e) => {
       this.searchQuery = e.target.value;
       const body = document.getElementById('vocab-body');
-      if (body && this.mode === 'dictionary') body.innerHTML = this.renderDictionaryArea();
+      if (body) body.innerHTML = this.renderDictionaryArea();
       this.bindEvents();
+      const newIn = document.getElementById('dict-search-input');
+      if (newIn) {
+        newIn.focus();
+        newIn.setSelectionRange(newIn.value.length, newIn.value.length);
+      }
     });
 
+    // Quick online search button from dictionary toolbar
     document.getElementById('btn-quick-online-search')?.addEventListener('click', () => {
-      this.mode = 'online';
-      this.renderContent();
-      if (this.searchQuery) {
-        this.performOnlineSearch(this.searchQuery);
+      const q = (document.getElementById('dict-search-input')?.value || this.searchQuery || '').trim();
+      if (!q) {
+        state.showToast('Lütfen aranacak bir kelime girin.', 'info');
+        return;
       }
+      this.mode = 'online';
+      this.searchQuery = q;
+      this.renderContent();
+      this.performOnlineSearch(q);
     });
 
     document.getElementById('btn-search-online-now')?.addEventListener('click', () => {
       this.mode = 'online';
       this.renderContent();
-      if (this.searchQuery) {
-        this.performOnlineSearch(this.searchQuery);
+      if (this.searchQuery) this.performOnlineSearch(this.searchQuery);
+    });
+
+    // Online Search Input & Button
+    document.getElementById('btn-submit-online-search')?.addEventListener('click', () => {
+      const val = (document.getElementById('online-word-input')?.value || '').trim();
+      if (!val) {
+        state.showToast('Lütfen aranacak bir kelime girin.', 'info');
+        return;
       }
+      this.performOnlineSearch(val);
     });
 
-    document.querySelectorAll('.level-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        this.levelFilter = tab.dataset.level;
-        const body = document.getElementById('vocab-body');
-        if (body && this.mode === 'dictionary') body.innerHTML = this.renderDictionaryArea();
-        this.bindEvents();
-      });
-    });
-
-    document.querySelectorAll('.dict-tts').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const text = btn.dataset.text;
-        if (text) speech.speak(text);
-      });
-    });
-
-    // Online Search Handlers
-    const onlineInput = document.getElementById('online-search-input');
-    onlineInput?.addEventListener('keydown', (e) => {
+    document.getElementById('online-word-input')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const val = onlineInput.value.trim();
+        const val = (e.target.value || '').trim();
         if (val) this.performOnlineSearch(val);
       }
     });
 
-    document.getElementById('btn-trigger-online-search')?.addEventListener('click', () => {
-      const val = document.getElementById('online-search-input')?.value.trim();
-      if (val) this.performOnlineSearch(val);
-    });
-
+    // Suggestion chips in online mode
     document.querySelectorAll('.suggestion-chip').forEach(chip => {
       chip.addEventListener('click', () => {
-        const word = chip.dataset.word;
-        if (word) {
-          const input = document.getElementById('online-search-input');
-          if (input) input.value = word;
-          this.performOnlineSearch(word);
-        }
+        const w = chip.dataset.word;
+        this.performOnlineSearch(w);
       });
     });
 
     // Play online audio
-    document.getElementById('play-online-audio-btn')?.addEventListener('click', () => {
-      const btn = document.getElementById('play-online-audio-btn');
-      const audioUrl = btn?.dataset.audio;
-      const word = btn?.dataset.word;
+    document.getElementById('play-online-audio-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const audioUrl = e.currentTarget.dataset.audio;
+      const word = e.currentTarget.dataset.word;
+
       if (audioUrl) {
         try {
-          if (this.audioElement) {
-            this.audioElement.pause();
+          if (!this.audioElement) {
+            this.audioElement = new Audio();
           }
-          this.audioElement = new Audio(audioUrl);
+          this.audioElement.src = audioUrl;
           this.audioElement.play().catch(() => {
             if (word) speech.speak(word);
           });
-        } catch (e) {
+        } catch (err) {
           if (word) speech.speak(word);
         }
       } else if (word) {
@@ -609,19 +734,88 @@ export class VocabularyView {
         await api.addCustomWord(res.word, trText, 'B1', res.example || '', res.phonetic, res.part_of_speech);
         state.showToast(`🎉 "${res.word}" kelimesi başarıyla kartlarınıza eklendi ve aktif edildi!`, 'success');
         
-        // Refresh queue
-        const queueData = await api.getReviewQueue();
-        this.reviewItems = queueData.items || [];
+        await this.loadQueueData();
         const dictData = await api.getVocabularyItems();
         this.dictionaryItems = dictData.items || [];
         
-        // Auto-switch to review or update badge
         this.mode = 'review';
         this.renderContent();
       } catch (err) {
         state.showToast('Kelime eklenirken hata: ' + err.message, 'error');
       }
     });
+
+    // Bind Keyboard Shortcuts for Review
+    if (this.keyHandler) {
+      window.removeEventListener('keydown', this.keyHandler);
+    }
+    this.keyHandler = (e) => {
+      if (this.mode !== 'review') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        this.toggleFlip();
+      } else if (this.isCardFlipped) {
+        if (e.key === '1') this.submitRating(0);
+        else if (e.key === '2') this.submitRating(1);
+        else if (e.key === '3') this.submitRating(2);
+        else if (e.key === '4') this.submitRating(3);
+      }
+    };
+    window.addEventListener('keydown', this.keyHandler);
+  }
+
+  shuffleActiveCards() {
+    const active = this.getActiveReviewItems();
+    if (active.length === 0) return;
+
+    // Fisher-Yates shuffle
+    for (let i = active.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [active[i], active[j]] = [active[j], active[i]];
+    }
+
+    this.currentIndex = 0;
+    this.isCardFlipped = false;
+    const body = document.getElementById('vocab-body');
+    if (body) body.innerHTML = this.renderReviewArea();
+    this.bindEvents();
+    state.showToast('🔀 Kartların sırası rastgele karıştırıldı!', 'info');
+  }
+
+  async handleDrawFreshWords(count = 15) {
+    try {
+      const lvl = this.reviewLevel || 'all';
+      const res = await api.drawFreshWords(lvl, count);
+      state.showToast(`✨ ${lvl === 'all' ? 'Arşivden' : lvl + ' seviyesinden'} ${res.activatedCount} yeni kelime kuyruğunuza eklendi!`, 'success');
+      await this.loadQueueData();
+      this.currentIndex = 0;
+      this.isCardFlipped = false;
+      const body = document.getElementById('vocab-body');
+      if (body) body.innerHTML = this.renderReviewArea();
+      this.bindEvents();
+    } catch (e) {
+      state.showToast('Yeni kelime çekilemedi: ' + e.message, 'error');
+    }
+  }
+
+  async handleResetLevel() {
+    const lvl = this.reviewLevel || 'all';
+    const msg = lvl === 'all'
+      ? 'Tüm seviyelerdeki kelimeleri baştan çalışmak üzere sıfırlamak istiyor musunuz?'
+      : `${lvl} seviyesindeki tüm kelimeleri baştan çalışmak üzere sıfırlamak istiyor musunuz?`;
+
+    if (!confirm(msg)) return;
+
+    try {
+      const res = await api.resetLevelQueue(lvl);
+      state.showToast(`🔄 ${lvl === 'all' ? 'Tüm seviyeler' : lvl + ' seviyesi'} baştan çalışmaya hazırlandı! (${res.resetCount} kelime aktif)`, 'success');
+      await this.loadQueueData();
+      this.shuffleActiveCards();
+    } catch (e) {
+      state.showToast('Sıfırlama başarısız: ' + e.message, 'error');
+    }
   }
 
   async performOnlineSearch(word) {
@@ -663,19 +857,35 @@ export class VocabularyView {
     if (manualBtn) manualBtn.textContent = this.isCardFlipped ? '🔄 Kartın Önünü Gör' : '🔄 Kartı Çevir (Anlamı Gör)';
 
     if (this.isCardFlipped) {
-      const item = this.reviewItems[this.currentIndex];
+      const activeItems = this.getActiveReviewItems();
+      const item = activeItems[this.currentIndex];
       if (item) speech.speak(item.word);
     }
   }
 
   async submitRating(rating) {
-    const item = this.reviewItems[this.currentIndex];
+    const activeItems = this.getActiveReviewItems();
+    const item = activeItems[this.currentIndex];
     if (!item) return;
 
     try {
       await api.submitReview(item.id, rating);
       this.isCardFlipped = false;
+
+      // If user rated 0 (Tekrar Et), push this item to the end of the active list
+      // so they can see and practice it again at the end of this session!
+      if (rating === 0) {
+        activeItems.push(item);
+      }
+
       this.currentIndex++;
+
+      // If we finished the active list, reload queue to update counters
+      if (this.currentIndex >= activeItems.length) {
+        await this.loadQueueData();
+        this.currentIndex = 0;
+      }
+
       const body = document.getElementById('vocab-body');
       if (body) body.innerHTML = this.renderReviewArea();
       this.bindEvents();

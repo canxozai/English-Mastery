@@ -214,12 +214,12 @@ class ApiClient {
     }
   }
 
-  async getReviewQueue() {
-    if (this.useLocal) return localService.getReviewQueue();
+  async getReviewQueue(level = 'all') {
+    if (this.useLocal) return localService.getReviewQueue(level);
     try {
-      return await this.request('/vocabulary/review');
+      return await this.request(`/vocabulary/review?level=${encodeURIComponent(level)}`);
     } catch (e) {
-      return localService.getReviewQueue();
+      return localService.getReviewQueue(level);
     }
   }
 
@@ -241,6 +241,14 @@ class ApiClient {
 
   async loadWordPack(level = 'A1') {
     return await localService.loadWordPack(level);
+  }
+
+  async drawFreshWords(level = 'all', count = 15) {
+    return await localService.drawFreshWords(level, count);
+  }
+
+  async resetLevelQueue(level = 'all') {
+    return await localService.resetLevelQueue(level);
   }
 
   async searchOnlineDictionary(word) {

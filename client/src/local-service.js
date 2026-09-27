@@ -199,7 +199,7 @@ class LocalService {
         interval: 0,
         ease_factor: 2.5,
         repetitions: 0,
-        due: true
+        due: (v.cefr_level === 'A1' && i < 25)
       };
     });
 
@@ -678,21 +678,47 @@ class LocalService {
     return { items, total: items.length };
   }
 
-  async getReviewQueue() {
+  async getReviewQueue(level = 'all') {
     this.syncVocabularyArchive();
-    const items = (this.getUserData('srs_items') || [])
-      .filter(i => i.due)
-      .map(v => {
-        const ex = (typeof v.examples === 'string' ? JSON.parse(v.examples) : v.examples) || v.example_sentences || [];
-        const col = (typeof v.collocations === 'string' ? JSON.parse(v.collocations) : v.collocations) || [];
-        return {
-          ...v,
-          examples: ex,
-          example_sentences: ex,
-          collocations: col
-        };
-      });
-    return { items, dueToday: items.length };
+    const allSrs = this.getUserData('srs_items') || [];
+    
+    // Calculate due count breakdown for each level
+    const dueByLevel = {
+      all: allSrs.filter(i => i.due).length,
+      A1: allSrs.filter(i => i.due && (i.cefr_level || '').toUpperCase() === 'A1').length,
+      A2: allSrs.filter(i => i.due && (i.cefr_level || '').toUpperCase() === 'A2').length,
+      B1: allSrs.filter(i => i.due && (i.cefr_level || '').toUpperCase() === 'B1').length,
+      B2: allSrs.filter(i => i.due && (i.cefr_level || '').toUpperCase() === 'B2').length,
+      C1: allSrs.filter(i => i.due && (i.cefr_level || '').toUpperCase() === 'C1').length
+    };
+
+    // Calculate total library count breakdown for each level
+    const totalByLevel = {
+      all: allSrs.length,
+      A1: allSrs.filter(i => (i.cefr_level || '').toUpperCase() === 'A1').length,
+      A2: allSrs.filter(i => (i.cefr_level || '').toUpperCase() === 'A2').length,
+      B1: allSrs.filter(i => (i.cefr_level || '').toUpperCase() === 'B1').length,
+      B2: allSrs.filter(i => (i.cefr_level || '').toUpperCase() === 'B2').length,
+      C1: allSrs.filter(i => (i.cefr_level || '').toUpperCase() === 'C1').length
+    };
+
+    let filtered = allSrs.filter(i => i.due);
+    if (level && level !== 'all') {
+      filtered = filtered.filter(i => (i.cefr_level || '').toUpperCase() === level.toUpperCase());
+    }
+
+    const items = filtered.map(v => {
+      const ex = (typeof v.examples === 'string' ? JSON.parse(v.examples) : v.examples) || v.example_sentences || [];
+      const col = (typeof v.collocations === 'string' ? JSON.parse(v.collocations) : v.collocations) || [];
+      return {
+        ...v,
+        examples: ex,
+        example_sentences: ex,
+        collocations: col
+      };
+    });
+
+    return { items, dueToday: items.length, dueByLevel, totalByLevel, currentLevel: level || 'all' };
   }
 
   async submitReview(itemId, rating) {
@@ -703,6 +729,10 @@ class LocalService {
       if (rating >= 2) {
         items[idx].due = false;
         items[idx].repetitions = (items[idx].repetitions || 0) + 1;
+        items[idx].interval = rating === 3 ? (items[idx].interval ? items[idx].interval * 2 : 4) : 2;
+      } else {
+        items[idx].due = true;
+        // Keep in queue for re-review
       }
       this.setUserData('srs_items', items);
     }
@@ -714,34 +744,60 @@ class LocalService {
     return { success: true };
   }
 
-  async loadWordPack(level = 'A1') {
+  async drawFreshWords(level = 'all', count = 15) {
     this.syncVocabularyArchive();
     const items = this.getUserData('srs_items') || [];
-    let activatedCount = 0;
+    
+    // Find candidate words for the specified level that are NOT currently due
+    let candidates = items.filter(item => {
+      const match = (level === 'all') || (item.cefr_level && item.cefr_level.toUpperCase() === level.toUpperCase());
+      return match && !item.due;
+    });
+
+    // Sort candidates: unstudied (repetitions == 0) first, then least studied
+    candidates.sort((a, b) => (a.repetitions || 0) - (b.repetitions || 0));
+
+    // Shuffle the top candidates so order is not predictable
+    const pool = candidates.slice(0, Math.max(count * 3, 30));
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    const selected = pool.slice(0, count);
+    const selectedIds = new Set(selected.map(s => s.id));
+
+    items.forEach(item => {
+      if (selectedIds.has(item.id)) {
+        item.due = true;
+      }
+    });
+
+    this.setUserData('srs_items', items);
+    return { success: true, activatedCount: selected.length, level };
+  }
+
+  async resetLevelQueue(level = 'all') {
+    this.syncVocabularyArchive();
+    const items = this.getUserData('srs_items') || [];
+    let resetCount = 0;
 
     items.forEach(item => {
       const match = (level === 'all') || (item.cefr_level && item.cefr_level.toUpperCase() === level.toUpperCase());
       if (match) {
-        if (!item.due) {
-          item.due = true;
-          activatedCount++;
-        }
+        item.due = true;
+        item.repetitions = 0;
+        item.interval = 0;
+        resetCount++;
       }
     });
 
-    if (activatedCount === 0) {
-      items.forEach(item => {
-        const match = (level === 'all') || (item.cefr_level && item.cefr_level.toUpperCase() === level.toUpperCase());
-        if (match) {
-          item.due = true;
-          activatedCount++;
-        }
-      });
-    }
-
     this.setUserData('srs_items', items);
-    const dueCount = items.filter(i => i.due).length;
-    return { success: true, activatedCount, totalDue: dueCount, level };
+    return { success: true, resetCount, level };
+  }
+
+  async loadWordPack(level = 'A1') {
+    return await this.drawFreshWords(level, 25);
   }
 
   async fetchOnlineWord(rawWord) {
