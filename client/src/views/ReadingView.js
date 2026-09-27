@@ -1,6 +1,6 @@
 /**
  * Reading Comprehension & Extensive Reading Lab
- * Interactive reader with inline word dictionary lookup and comprehension assessment
+ * Interactive reader with vocabulary definitions and comprehension checks
  */
 import { api } from '../api.js';
 import { state } from '../state.js';
@@ -21,7 +21,7 @@ export class ReadingView {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Loading reading materials...</p>
+        <p>Okuma metinleri yükleniyor...</p>
       </div>
     `;
 
@@ -36,7 +36,7 @@ export class ReadingView {
     } catch (err) {
       this.container.innerHTML = `
         <div class="card error-card">
-          <h3>Failed to load reading materials</h3>
+          <h3>Metinler yüklenemedi</h3>
           <p>${err.message}</p>
         </div>
       `;
@@ -52,7 +52,7 @@ export class ReadingView {
       this.submissionResult = null;
       this.renderContent();
     } catch (err) {
-      state.showToast('Failed to load text: ' + err.message, 'error');
+      state.showToast('Metin yüklenemedi: ' + err.message, 'error');
     }
   }
 
@@ -68,21 +68,21 @@ export class ReadingView {
         <!-- Sidebar: Library Catalog -->
         <aside class="reading-sidebar card">
           <div class="reading-sidebar-header">
-            <h3>Reading Library</h3>
-            <span class="catalog-count">${this.materials.length} Articles</span>
+            <h3>Okuma Kütüphanesi</h3>
+            <span class="catalog-count">${this.materials.length} Metin</span>
           </div>
 
           <div class="reading-catalog-list">
             ${this.materials.map(m => `
               <div class="catalog-item ${mat && mat.id === m.id ? 'active' : ''}" data-id="${m.id}">
                 <div class="catalog-item-top">
-                  <span class="cefr-tag ${m.cefr_level}">${m.cefr_level}</span>
+                  <span class="cefr-tag ${m.cefr_level || 'A1'}">${m.cefr_level || 'A1'}</span>
                   <span class="catalog-cat">${(m.category || '').toUpperCase()}</span>
                 </div>
                 <div class="catalog-title">${m.title}</div>
                 <div class="catalog-meta">
-                  <span>⏱️ ${m.estimated_reading_time || 3} min</span>
-                  <span>📝 ${m.word_count || 150} words</span>
+                  <span>⏱️ ~${m.estimated_reading_time || 2} dk</span>
+                  <span>📝 ${m.word_count || 120} kelime</span>
                 </div>
               </div>
             `).join('')}
@@ -95,17 +95,17 @@ export class ReadingView {
             <article class="card reading-article-card">
               <div class="article-header">
                 <div class="article-meta-tags">
-                  <span class="cefr-tag ${mat.cefr_level}">${mat.cefr_level}</span>
+                  <span class="cefr-tag ${mat.cefr_level || 'A1'}">${mat.cefr_level || 'A1'}</span>
                   <span class="topic-category-badge">${mat.category}</span>
-                  <span class="article-stats-pill">${mat.word_count} words • ~${mat.estimated_reading_time} min read</span>
+                  <span class="article-stats-pill">${mat.word_count} kelime • ~${mat.estimated_reading_time} dk okuma</span>
                 </div>
                 <h1 class="article-title">${mat.title}</h1>
                 <div class="article-controls">
                   <button class="btn btn-secondary btn-sm" id="read-aloud-btn">
-                    🔊 Read Aloud (TTS)
+                    🔊 Sesli Oku (TTS)
                   </button>
                   <button class="btn btn-secondary btn-sm" id="stop-read-btn">
-                    ⏹️ Stop
+                    ⏹️ Durdur
                   </button>
                 </div>
               </div>
@@ -118,9 +118,9 @@ export class ReadingView {
               <!-- Key Vocabulary Pills -->
               ${keyVocab.length > 0 ? `
                 <div class="key-vocab-section">
-                  <h4>Key Vocabulary in This Text:</h4>
+                  <h4>Metindeki Temel Kelimeler (Dinlemek için tıklayın):</h4>
                   <div class="vocab-pills-list">
-                    ${keyVocab.map(v => `<span class="vocab-pill" data-word="${v}">${v}</span>`).join('')}
+                    ${keyVocab.map(v => `<span class="vocab-pill" data-word="${v}">🔊 ${v}</span>`).join('')}
                   </div>
                 </div>
               ` : ''}
@@ -130,8 +130,8 @@ export class ReadingView {
             <section class="card comprehension-card">
               <div class="card-header">
                 <div>
-                  <h3 class="card-title">🧠 Comprehension Questions</h3>
-                  <div class="card-subtitle">Verify your understanding and inference accuracy</div>
+                  <h3 class="card-title">🧠 Okuduğunu Anlama Soruları</h3>
+                  <div class="card-subtitle">Metni ne kadar iyi anladığınızı test edin</div>
                 </div>
               </div>
 
@@ -152,7 +152,7 @@ export class ReadingView {
 
               <div class="reading-submit-wrap">
                 <button class="btn btn-primary btn-lg" id="submit-reading-btn">
-                  Check Comprehension Answers
+                  Cevapları Kontrol Et →
                 </button>
               </div>
 
@@ -161,7 +161,7 @@ export class ReadingView {
             </section>
           ` : `
             <div class="card empty-state">
-              <p>Select an article from the library to begin reading.</p>
+              <p>Okumaya başlamak için sol menüden bir metin seçin.</p>
             </div>
           `}
         </div>
@@ -172,7 +172,6 @@ export class ReadingView {
   }
 
   bindEvents() {
-    // Select catalog item
     this.container.querySelectorAll('.catalog-item').forEach(item => {
       item.addEventListener('click', () => {
         const id = item.dataset.id;
@@ -180,7 +179,6 @@ export class ReadingView {
       });
     });
 
-    // Read Aloud TTS
     document.getElementById('read-aloud-btn')?.addEventListener('click', () => {
       if (this.selectedMaterial) {
         speech.speak(this.selectedMaterial.content, { rate: 0.9 });
@@ -188,66 +186,63 @@ export class ReadingView {
     });
 
     document.getElementById('stop-read-btn')?.addEventListener('click', () => {
-      speech.cancel();
+      speech.stop();
     });
 
-    // Word click TTS
-    this.container.querySelectorAll('.vocab-pill').forEach(pill => {
+    document.querySelectorAll('.vocab-pill').forEach(pill => {
       pill.addEventListener('click', () => {
-        speech.speak(pill.dataset.word);
+        const w = pill.dataset.word;
+        if (w) speech.speak(w);
       });
     });
 
-    // Select comprehension option
-    this.container.querySelectorAll('.comp-opt-btn').forEach(btn => {
+    document.querySelectorAll('.comp-opt-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = btn.dataset.idx;
         const val = btn.dataset.val;
         this.userAnswers[idx] = val;
-
-        const parent = btn.closest('.comp-options-list');
-        parent.querySelectorAll('.comp-opt-btn').forEach(b => b.classList.remove('selected'));
+        btn.parentElement.querySelectorAll('.comp-opt-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
       });
     });
 
-    // Submit Comprehension
-    document.getElementById('submit-reading-btn')?.addEventListener('click', async () => {
-      const mat = this.selectedMaterial;
-      const questions = mat && mat.comprehension_questions ?
-        (typeof mat.comprehension_questions === 'string' ? JSON.parse(mat.comprehension_questions) : mat.comprehension_questions) : [];
+    document.getElementById('submit-reading-btn')?.addEventListener('click', () => {
+      this.submitComprehension();
+    });
+  }
 
-      if (Object.keys(this.userAnswers).length < questions.length) {
-        state.showToast('Please answer all comprehension questions first.', 'error');
-        return;
-      }
+  async submitComprehension() {
+    const elapsedSeconds = Math.round((Date.now() - this.readingStartTime) / 1000);
+    const submitBtn = document.getElementById('submit-reading-btn');
+    if (submitBtn) submitBtn.disabled = true;
 
-      const readingSeconds = Math.round((Date.now() - this.readingStartTime) / 1000);
-
-      try {
-        const res = await api.submitReading(mat.id, this.userAnswers, readingSeconds);
-        const resultsBox = document.getElementById('comp-results-box');
-        resultsBox.style.display = 'block';
-
-        resultsBox.innerHTML = `
-          <div class="results-banner ${res.score >= 70 ? 'good' : 'warning'}">
-            <h3>Comprehension Score: ${res.score}% (${res.correctCount} of ${res.totalCount} correct)</h3>
-            <p>Words read: ${res.wordCount} • Speed: ${res.wordsPerMinute} words per minute</p>
+    try {
+      const res = await api.submitReading(this.selectedMaterial.id, this.userAnswers, elapsedSeconds);
+      const resBox = document.getElementById('comp-results-box');
+      if (resBox) {
+        resBox.innerHTML = `
+          <div class="results-header">
+            <h4>Anlama Skoru: %${res.score}</h4>
+            <span>${res.correctCount} / ${res.totalCount} Doğru • Okuma Hızı: ${res.wordsPerMinute} kelime/dk</span>
           </div>
-          <div class="detailed-answers">
-            ${(res.details || []).map((d, i) => `
-              <div class="answer-eval-item ${d.isCorrect ? 'correct' : 'wrong'}">
-                <div><strong>Question ${i + 1}:</strong> ${d.question}</div>
-                <div>Your answer: <em>${d.userAnswer}</em> ${d.isCorrect ? '✅' : `❌ (Correct: <strong>${d.correctAnswer}</strong>)`}</div>
+          <div class="details-list">
+            ${res.details.map(d => `
+              <div class="result-detail-item ${d.isCorrect ? 'correct' : 'incorrect'}">
+                <span class="detail-icon">${d.isCorrect ? '✅' : '❌'}</span>
+                <div>
+                  <div class="detail-q">${d.question}</div>
+                  <div class="detail-ans">Cevabınız: <strong>${d.userAnswer || '(Boş)'}</strong> | Doğru: <strong>${d.correctAnswer}</strong></div>
+                </div>
               </div>
             `).join('')}
           </div>
         `;
-
-        state.showToast(`Reading submitted! Score: ${res.score}%`, res.score >= 70 ? 'success' : 'info');
-      } catch (err) {
-        state.showToast('Submission error: ' + err.message, 'error');
+        resBox.style.display = 'block';
       }
-    });
+      state.showToast(`Okuma tamamlandı! Skorunuz: %${res.score}`, res.score >= 70 ? 'success' : 'info');
+    } catch (err) {
+      state.showToast('Sonuçlar kaydedilemedi: ' + err.message, 'error');
+      if (submitBtn) submitBtn.disabled = false;
+    }
   }
 }

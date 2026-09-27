@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-BcIR5wlF.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BQTjyxJ9.css">
+  <script type="module" crossorigin src="./assets/index-DMtQ-PE6.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Cccjv2hr.css">
 </head>
 <body class="dark-theme">
   <div id="app" class="app-layout">
@@ -32,20 +32,20 @@
       <!-- Quick User Level Widget -->
       <div class="user-level-card" id="sidebar-level-card">
         <div class="level-indicator">
-          <span class="level-badge" id="sidebar-cefr-badge">B1</span>
+          <span class="level-badge" id="sidebar-cefr-badge">A1</span>
           <div class="level-info">
-            <span class="level-label" id="sidebar-cefr-label">Independent User</span>
+            <span class="level-label" id="sidebar-cefr-label">A1 - Başlangıç</span>
             <div class="level-progress-bar">
-              <div class="level-progress-fill" id="sidebar-cefr-progress" style="width: 55%;"></div>
+              <div class="level-progress-fill" id="sidebar-cefr-progress" style="width: 15%;"></div>
             </div>
           </div>
         </div>
         <div class="sidebar-stats">
-          <div class="sidebar-stat" title="Current Daily Streak">
+          <div class="sidebar-stat" title="Günlük Çalışma Serisi">
             <span class="stat-icon">🔥</span>
-            <span class="stat-val" id="sidebar-streak">0 days</span>
+            <span class="stat-val" id="sidebar-streak">1 gün</span>
           </div>
-          <div class="sidebar-stat" title="Total XP Earned">
+          <div class="sidebar-stat" title="Kazanılan Toplam Puan">
             <span class="stat-icon">⚡</span>
             <span class="stat-val" id="sidebar-xp">0 XP</span>
           </div>
@@ -54,7 +54,7 @@
 
       <!-- Navigation Menu -->
       <nav class="nav-menu">
-        <div class="nav-section-title">OVERVIEW</div>
+        <div class="nav-section-title">GENEL BAKIŞ</div>
         <button class="nav-item active" data-view="dashboard" id="nav-dashboard">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"></rect>
@@ -62,24 +62,24 @@
             <rect x="14" y="14" width="7" height="7"></rect>
             <rect x="3" y="14" width="7" height="7"></rect>
           </svg>
-          <span>Dashboard & Routine</span>
+          <span>Genel Bakış & Rutin</span>
         </button>
 
         <button class="nav-item" data-view="assessment" id="nav-assessment">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
           </svg>
-          <span>Diagnostic Assessment</span>
+          <span>Seviye Belirleme Sınavı</span>
           <span class="nav-badge" id="assessment-badge">CEFR</span>
         </button>
 
-        <div class="nav-section-title">SKILL LABS</div>
+        <div class="nav-section-title">ÖĞRENME ALANLARI</div>
         <button class="nav-item" data-view="grammar" id="nav-grammar">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
           </svg>
-          <span>Grammar Academy</span>
+          <span>Gramer Akademisi</span>
         </button>
 
         <button class="nav-item" data-view="vocabulary" id="nav-vocabulary">
@@ -87,7 +87,7 @@
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
           </svg>
-          <span>Spaced Repetition (SRS)</span>
+          <span>Akıllı Kelime Kartları (SRS)</span>
           <span class="nav-badge count" id="review-due-badge">0</span>
         </button>
 
@@ -98,7 +98,7 @@
             <line x1="16" y1="13" x2="8" y2="13"></line>
             <line x1="16" y1="17" x2="8" y2="17"></line>
           </svg>
-          <span>Reading Comprehension</span>
+          <span>Okuma & Anlama</span>
         </button>
 
         <button class="nav-item" data-view="listening" id="nav-listening">
@@ -106,7 +106,7 @@
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
           </svg>
-          <span>Listening & Phonics</span>
+          <span>Dinleme & Telaffuz</span>
         </button>
 
         <button class="nav-item" data-view="writing" id="nav-writing">
@@ -114,14 +114,14 @@
             <path d="M12 20h9"></path>
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
           </svg>
-          <span>Writing Studio</span>
+          <span>Yazma Laboratuvarı</span>
         </button>
 
         <button class="nav-item" data-view="speaking" id="nav-speaking">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
-          <span>Speaking & Roleplay</span>
+          <span>Konuşma Simülatörü</span>
         </button>
 
         <button class="nav-item" data-view="pronunciation" id="nav-pronunciation">
@@ -131,17 +131,17 @@
             <line x1="12" y1="19" x2="12" y2="23"></line>
             <line x1="8" y1="23" x2="16" y2="23"></line>
           </svg>
-          <span>Pronunciation & Accent</span>
+          <span>Telaffuz Koçu</span>
         </button>
 
-        <div class="nav-section-title">MASTERY TOOLS</div>
+        <div class="nav-section-title">GELİŞİM ARAÇLARI</div>
         <button class="nav-item" data-view="errors" id="nav-errors">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
-          <span>Error Bank (Hata Defteri)</span>
+          <span>Kişisel Hata Defteri</span>
           <span class="nav-badge count alert" id="errors-count-badge">0</span>
         </button>
 
@@ -151,17 +151,17 @@
             <line x1="12" y1="20" x2="12" y2="4"></line>
             <line x1="6" y1="20" x2="6" y2="14"></line>
           </svg>
-          <span>Progress & Analytics</span>
+          <span>Gelişim & İstatistik</span>
         </button>
       </nav>
 
       <!-- Sidebar Footer -->
       <div class="sidebar-footer">
         <div class="user-chip">
-          <div class="user-avatar" id="header-user-avatar">EN</div>
+          <div class="user-avatar" id="header-user-avatar">A1</div>
           <div class="user-details">
-            <div class="user-name" id="header-username">Learner</div>
-            <div class="user-status">Personal Learning Path</div>
+            <div class="user-name" id="header-username">Giriş Yapılmadı</div>
+            <div class="user-status" id="header-user-status">0'dan Başlangıç Yolu</div>
           </div>
         </div>
       </div>
@@ -172,19 +172,19 @@
       <!-- Top App Bar -->
       <header class="topbar">
         <div class="topbar-left">
-          <button class="menu-toggle" id="sidebar-toggle" aria-label="Toggle Sidebar">
+          <button class="menu-toggle" id="sidebar-toggle" aria-label="Menüyü Aç/Kapat">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="3" y1="12" x2="21" y2="12"></line>
               <line x1="3" y1="6" x2="21" y2="6"></line>
               <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-          <div class="current-view-title" id="page-title">Personal Dashboard</div>
+          <div class="current-view-title" id="page-title">Genel Bakış & Günlük Rutin</div>
         </div>
 
         <div class="topbar-right">
           <!-- Study Timer Widget -->
-          <div class="session-timer-pill" id="session-timer-widget" title="Active Study Time This Session">
+          <div class="session-timer-pill" id="session-timer-widget" title="Bu oturumdaki aktif çalışma süreniz">
             <span class="timer-dot"></span>
             <span class="timer-text" id="session-timer">00:00</span>
           </div>
@@ -194,7 +194,12 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
-            <span>Today's Routine</span>
+            <span>Günün Rutini</span>
+          </button>
+
+          <!-- User Session Actions / Logout -->
+          <button class="btn btn-secondary btn-sm" id="btn-logout" title="Oturumu Kapat / Hesap Değiştir">
+            <span>🚪 Çıkış Yap</span>
           </button>
         </div>
       </header>

@@ -23,7 +23,7 @@ export class ListeningView {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Loading listening tracks...</p>
+        <p>Dinleme parçaları yükleniyor...</p>
       </div>
     `;
 
@@ -38,7 +38,7 @@ export class ListeningView {
     } catch (err) {
       this.container.innerHTML = `
         <div class="card error-card">
-          <h3>Failed to load listening tracks</h3>
+          <h3>Dinleme parçaları yüklenemedi</h3>
           <p>${err.message}</p>
         </div>
       `;
@@ -56,7 +56,7 @@ export class ListeningView {
       this.userAnswers = {};
       this.renderContent();
     } catch (err) {
-      state.showToast('Failed to load track: ' + err.message, 'error');
+      state.showToast('Parça yüklenemedi: ' + err.message, 'error');
     }
   }
 
@@ -70,16 +70,16 @@ export class ListeningView {
         <!-- Sidebar -->
         <aside class="listening-sidebar card">
           <div class="listening-sidebar-header">
-            <h3>Listening Tracks</h3>
-            <span class="catalog-count">${this.materials.length} Audio Tracks</span>
+            <h3>Dinleme Parçaları</h3>
+            <span class="catalog-count">${this.materials.length} Parça</span>
           </div>
 
           <div class="tracks-list">
             ${this.materials.map(m => `
               <div class="track-item ${mat && mat.id === m.id ? 'active' : ''}" data-id="${m.id}">
                 <div class="track-top">
-                  <span class="cefr-tag ${m.cefr_level}">${m.cefr_level}</span>
-                  <span class="track-accent">${m.accent === 'british' ? '🇬🇧 British' : '🇺🇸 American'}</span>
+                  <span class="cefr-tag ${m.cefr_level || 'A1'}">${m.cefr_level || 'A1'}</span>
+                  <span class="track-accent">${m.accent === 'british' ? '🇬🇧 İngiliz' : '🇺🇸 Amerikan'}</span>
                 </div>
                 <div class="track-title">${m.title}</div>
               </div>
@@ -94,7 +94,7 @@ export class ListeningView {
             <section class="card audio-player-card">
               <div class="player-top">
                 <div class="track-meta">
-                  <span class="cefr-tag ${mat.cefr_level}">${mat.cefr_level}</span>
+                  <span class="cefr-tag ${mat.cefr_level || 'A1'}">${mat.cefr_level || 'A1'}</span>
                   <span class="topic-category-badge">${(mat.category || '').toUpperCase()}</span>
                 </div>
                 <h1 class="track-main-title">${mat.title}</h1>
@@ -104,34 +104,33 @@ export class ListeningView {
               <!-- Interactive Controls -->
               <div class="player-controls-strip">
                 <button class="btn btn-primary btn-lg" id="play-audio-btn">
-                  ▶️ Play Audio Track
+                  ▶️ Parçayı Dinle
                 </button>
                 <button class="btn btn-secondary btn-lg" id="pause-audio-btn">
-                  ⏹️ Stop
+                  ⏹️ Durdur
                 </button>
 
                 <div class="speed-selector">
-                  <span class="control-label">Speed:</span>
-                  <button class="speed-btn ${this.speed === 0.75 ? 'active' : ''}" data-speed="0.75">0.75x</button>
-                  <button class="speed-btn ${this.speed === 1.0 ? 'active' : ''}" data-speed="1.0">1.0x</button>
-                  <button class="speed-btn ${this.speed === 1.25 ? 'active' : ''}" data-speed="1.25">1.25x</button>
+                  <span class="control-label">Hız:</span>
+                  <button class="speed-btn ${this.speed === 0.75 ? 'active' : ''}" data-speed="0.75">0.75x (Yavaş)</button>
+                  <button class="speed-btn ${this.speed === 1.0 ? 'active' : ''}" data-speed="1.0">1.0x (Normal)</button>
                 </div>
 
                 <div class="accent-selector">
-                  <span class="control-label">Accent:</span>
-                  <button class="accent-btn ${this.accent === 'en-US' ? 'active' : ''}" data-accent="en-US">🇺🇸 US</button>
-                  <button class="accent-btn ${this.accent === 'en-GB' ? 'active' : ''}" data-accent="en-GB">🇬🇧 UK</button>
+                  <span class="control-label">Aksan:</span>
+                  <button class="accent-btn ${this.accent === 'en-US' ? 'active' : ''}" data-accent="en-US">🇺🇸 Amerikan</button>
+                  <button class="accent-btn ${this.accent === 'en-GB' ? 'active' : ''}" data-accent="en-GB">🇬🇧 İngiliz</button>
                 </div>
               </div>
 
               <div class="listen-count-indicator">
-                Listened: <strong id="listen-count-val">${this.listenCount}</strong> times
+                Dinleme Sayısı: <strong id="listen-count-val">${this.listenCount}</strong> kez
               </div>
 
               <!-- Transcript Reveal Toggle -->
               <div class="transcript-box">
                 <button class="btn btn-secondary btn-sm" id="toggle-transcript-btn">
-                  ${this.showTranscript ? 'Hide Transcript' : '👁️ Reveal English Transcript'}
+                  ${this.showTranscript ? 'Transkripti Gizle' : '👁️ İngilizce Transkripti Göster'}
                 </button>
                 <div class="transcript-content" id="transcript-content" style="display: ${this.showTranscript ? 'block' : 'none'};">
                   <p>${(mat.transcript || mat.audio_text || '').replace(/\n/g, '<br>')}</p>
@@ -142,8 +141,8 @@ export class ListeningView {
             <!-- Comprehension Questions -->
             <section class="card listening-questions-card">
               <div class="card-header">
-                <h3 class="card-title">🎧 Comprehension & Ear Training</h3>
-                <span class="card-subtitle">Answer based strictly on what you heard</span>
+                <h3 class="card-title">🎧 Dinlediğini Anlama Soruları</h3>
+                <span class="card-subtitle">Yalnızca duyduklarınıza dayanarak soruları cevaplayın</span>
               </div>
 
               <div class="listening-questions-list">
@@ -163,7 +162,7 @@ export class ListeningView {
 
               <div class="listening-actions">
                 <button class="btn btn-primary btn-lg" id="submit-listening-btn">
-                  Check Listening Answers
+                  Cevapları Kontrol Et →
                 </button>
               </div>
 
@@ -171,7 +170,7 @@ export class ListeningView {
             </section>
           ` : `
             <div class="card empty-state">
-              <p>Select a track to start listening practice.</p>
+              <p>Dinleme alıştırmasına başlamak için sol menüden bir parça seçin.</p>
             </div>
           `}
         </div>
@@ -182,20 +181,21 @@ export class ListeningView {
   }
 
   bindEvents() {
-    this.container.querySelectorAll('.track-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const id = item.dataset.id;
+    this.container.querySelectorAll('.track-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.id;
         if (id) this.loadMaterial(id);
       });
     });
 
-    // Play Audio
     document.getElementById('play-audio-btn')?.addEventListener('click', () => {
       if (this.selectedMaterial) {
+        const text = this.selectedMaterial.audio_text || this.selectedMaterial.transcript || '';
         this.listenCount++;
         const countEl = document.getElementById('listen-count-val');
         if (countEl) countEl.textContent = this.listenCount;
-        speech.speak(this.selectedMaterial.audio_text, {
+
+        speech.speak(text, {
           rate: this.speed,
           lang: this.accent
         });
@@ -203,82 +203,79 @@ export class ListeningView {
     });
 
     document.getElementById('pause-audio-btn')?.addEventListener('click', () => {
-      speech.cancel();
+      speech.stop();
     });
 
-    // Speed buttons
-    this.container.querySelectorAll('.speed-btn').forEach(btn => {
+    document.querySelectorAll('.speed-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.speed = parseFloat(btn.dataset.speed);
-        this.container.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
       });
     });
 
-    // Accent buttons
-    this.container.querySelectorAll('.accent-btn').forEach(btn => {
+    document.querySelectorAll('.accent-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.accent = btn.dataset.accent;
-        this.container.querySelectorAll('.accent-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.accent-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
       });
     });
 
-    // Transcript toggle
     document.getElementById('toggle-transcript-btn')?.addEventListener('click', () => {
       this.showTranscript = !this.showTranscript;
       const transEl = document.getElementById('transcript-content');
+      const toggleBtn = document.getElementById('toggle-transcript-btn');
       if (transEl) transEl.style.display = this.showTranscript ? 'block' : 'none';
-      const btn = document.getElementById('toggle-transcript-btn');
-      if (btn) btn.textContent = this.showTranscript ? 'Hide Transcript' : '👁️ Reveal English Transcript';
+      if (toggleBtn) toggleBtn.textContent = this.showTranscript ? 'Transkripti Gizle' : '👁️ İngilizce Transkripti Göster';
     });
 
-    // Options select
-    this.container.querySelectorAll('.l-opt-btn').forEach(btn => {
+    document.querySelectorAll('.l-opt-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const qIdx = btn.dataset.qIdx;
         const val = btn.dataset.val;
         this.userAnswers[qIdx] = val;
-        const parent = btn.closest('.l-options-grid');
-        parent.querySelectorAll('.l-opt-btn').forEach(b => b.classList.remove('selected'));
+        btn.parentElement.querySelectorAll('.l-opt-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
       });
     });
 
-    // Submit
-    document.getElementById('submit-listening-btn')?.addEventListener('click', async () => {
-      const mat = this.selectedMaterial;
-      const questions = mat && mat.comprehension_questions ?
-        (typeof mat.comprehension_questions === 'string' ? JSON.parse(mat.comprehension_questions) : mat.comprehension_questions) : [];
+    document.getElementById('submit-listening-btn')?.addEventListener('click', () => {
+      this.submitListeningAnswers();
+    });
+  }
 
-      if (Object.keys(this.userAnswers).length < questions.length) {
-        state.showToast('Please answer all questions first.', 'error');
-        return;
-      }
+  async submitListeningAnswers() {
+    const submitBtn = document.getElementById('submit-listening-btn');
+    if (submitBtn) submitBtn.disabled = true;
 
-      try {
-        const res = await api.submitListening(mat.id, this.userAnswers, this.listenCount);
-        const resultsBox = document.getElementById('l-results');
-        resultsBox.style.display = 'block';
-
-        resultsBox.innerHTML = `
-          <div class="results-banner ${res.score >= 70 ? 'good' : 'warning'}">
-            <h3>Listening Score: ${res.score}% (${res.correctCount} of ${res.totalCount} correct)</h3>
-            <p>Listened ${res.listenCount} times.</p>
+    try {
+      const res = await api.submitListening(this.selectedMaterial.id, this.userAnswers, this.listenCount);
+      const resBox = document.getElementById('l-results');
+      if (resBox) {
+        resBox.innerHTML = `
+          <div class="results-header">
+            <h4>Dinleme Skoru: %${res.score}</h4>
+            <span>${res.correctCount} / ${res.totalCount} Doğru • ${res.listenCount} Dinleme</span>
           </div>
-          <div class="detailed-answers">
-            ${(res.details || []).map((d, i) => `
-              <div class="answer-eval-item ${d.isCorrect ? 'correct' : 'wrong'}">
-                <div><strong>Question ${i + 1}:</strong> ${d.question}</div>
-                <div>Your answer: <em>${d.userAnswer}</em> ${d.isCorrect ? '✅' : `❌ (Correct: <strong>${d.correctAnswer}</strong>)`}</div>
+          <div class="details-list">
+            ${res.details.map(d => `
+              <div class="result-detail-item ${d.isCorrect ? 'correct' : 'incorrect'}">
+                <span class="detail-icon">${d.isCorrect ? '✅' : '❌'}</span>
+                <div>
+                  <div class="detail-q">${d.question}</div>
+                  <div class="detail-ans">Cevabınız: <strong>${d.userAnswer || '(Boş)'}</strong> | Doğru: <strong>${d.correctAnswer}</strong></div>
+                </div>
               </div>
             `).join('')}
           </div>
         `;
-        state.showToast(`Listening completed! Score: ${res.score}%`, 'success');
-      } catch (err) {
-        state.showToast('Submission error: ' + err.message, 'error');
+        resBox.style.display = 'block';
       }
-    });
+      state.showToast(`Dinleme testi bitti! Skorunuz: %${res.score}`, res.score >= 70 ? 'success' : 'info');
+    } catch (err) {
+      state.showToast('Cevaplar kaydedilemedi: ' + err.message, 'error');
+      if (submitBtn) submitBtn.disabled = false;
+    }
   }
 }

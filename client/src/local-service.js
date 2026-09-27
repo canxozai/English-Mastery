@@ -1,139 +1,287 @@
 /**
  * Client-Side Standalone Service for LinguaForge
- * Enables 100% offline & GitHub Pages static execution without requiring Express server
+ * Multi-user account management (Username & Password)
+ * Guarantees every new learner starts at Level 0 (A1) with 0 XP
+ * 100% offline & GitHub Pages static execution
  */
 import { staticData } from './static-data.js';
 
 class LocalService {
   constructor() {
-    this.storageKeyPrefix = 'linguaforge_local_';
-    this.initStorage();
+    this.currentUser = null;
+    this.initAuth();
   }
 
-  initStorage() {
-    if (!this.get('stats')) {
-      this.set('stats', {
-        xp: 120,
-        level: 1,
-        current_streak: 1,
-        longest_streak: 1,
-        total_study_minutes: 15,
-        total_words_learned: 10,
-        total_grammar_mastered: 4,
-        total_errors_resolved: 2,
-        last_study_date: new Date().toISOString().slice(0, 10)
-      });
-    }
-
-    if (!this.get('skills')) {
-      this.set('skills', {
-        grammar: { level: 'A2', sublevel: '+', score: 65 },
-        vocabulary: { level: 'A2', sublevel: '', score: 55 },
-        reading: { level: 'B1', sublevel: '-', score: 68 },
-        listening: { level: 'A2', sublevel: '+', score: 62 },
-        writing: { level: 'A2', sublevel: '', score: 50 },
-        speaking: { level: 'A2', sublevel: '', score: 48 },
-        pronunciation: { level: 'A2', sublevel: '', score: 52 },
-        sentence_formation: { level: 'A2', sublevel: '+', score: 60 },
-        comprehension: { level: 'B1', sublevel: '', score: 70 },
-        communication: { level: 'A2', sublevel: '', score: 54 }
-      });
-    }
-
-    if (!this.get('errors')) {
-      this.set('errors', [
-        {
-          id: 1,
-          skill: 'grammar',
-          error_text: 'She don\'t like coffee.',
-          correction: 'She doesn\'t like coffee.',
-          explanation: 'Third-person singular requires "doesn\'t" in the Present Simple, not "don\'t".',
-          occurrence_count: 2,
-          resolved: 0
-        },
-        {
-          id: 2,
-          skill: 'vocabulary',
-          error_text: 'I made my homework.',
-          correction: 'I did my homework.',
-          explanation: 'Collocation error: in English we "do homework" and "make a mistake".',
-          occurrence_count: 3,
-          resolved: 0
-        }
-      ]);
-    }
-
-    if (!this.get('srs_items')) {
-      const vocab = staticData.vocabulary_items.map((v, i) => ({
-        ...v,
-        id: v.id || i + 1,
-        examples: typeof v.examples === 'string' ? JSON.parse(v.examples || '[]') : v.examples,
-        synonyms: typeof v.synonyms === 'string' ? JSON.parse(v.synonyms || '[]') : v.synonyms,
-        antonyms: typeof v.antonyms === 'string' ? JSON.parse(v.antonyms || '[]') : v.antonyms,
-        collocations: typeof v.collocations === 'string' ? JSON.parse(v.collocations || '[]') : v.collocations,
-        interval: 1,
-        ease_factor: 2.5,
-        repetitions: 1,
-        due: true
-      }));
-      this.set('srs_items', vocab);
-    }
-  }
-
-  get(key) {
+  initAuth() {
     try {
-      const raw = localStorage.getItem(this.storageKeyPrefix + key);
+      const activeUsername = localStorage.getItem('linguaforge_active_user');
+      const users = this.getAccounts();
+      if (activeUsername && users.length > 0) {
+        const found = users.find(u => u.username.toLowerCase() === activeUsername.toLowerCase());
+        if (found) {
+          this.currentUser = found;
+        }
+      }
+    } catch (e) {
+      console.warn('Error initializing auth:', e);
+    }
+  }
+
+  getAccounts() {
+    try {
+      const raw = localStorage.getItem('linguaforge_users');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveAccounts(accounts) {
+    try {
+      localStorage.setItem('linguaforge_users', JSON.stringify(accounts));
+    } catch (e) {}
+  }
+
+  getCurrentUser() {
+    return this.currentUser;
+  }
+
+  async login(username, password) {
+    const cleanUser = (username || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+
+    const accounts = this.getAccounts();
+    const account = accounts.find(a => a.username.toLowerCase() === cleanUser);
+
+    if (!account) {
+      throw new Error('Kullanıcı bulunamadı. Lütfen kullanıcı adınızı kontrol edin veya yeni hesap açın.');
+    }
+
+    if (account.password && account.password !== cleanPass) {
+      throw new Error('Şifre hatalı! Lütfen şifrenizi tekrar deneyin.');
+    }
+
+    this.currentUser = account;
+    localStorage.setItem('linguaforge_active_user', account.username);
+    this.ensureUserStorage(account.username);
+    return account;
+  }
+
+  async register(username, password, displayName) {
+    const cleanUser = (username || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+    const cleanName = (displayName || '').trim() || username;
+
+    if (!cleanUser) throw new Error('Kullanıcı adı boş bırakılamaz.');
+    if (cleanUser.length < 2) throw new Error('Kullanıcı adı en az 2 karakter olmalıdır.');
+    if (!cleanPass) throw new Error('Şifre boş bırakılamaz.');
+
+    const accounts = this.getAccounts();
+    if (accounts.some(a => a.username.toLowerCase() === cleanUser)) {
+      throw new Error('Bu kullanıcı adı zaten alınmış. Farklı bir kullanıcı adı deneyin veya giriş yapın.');
+    }
+
+    const newAccount = {
+      id: 'u_' + Date.now(),
+      username: cleanUser,
+      displayName: cleanName,
+      password: cleanPass,
+      createdAt: new Date().toISOString(),
+      cefr_level: 'A1'
+    };
+
+    accounts.push(newAccount);
+    this.saveAccounts(accounts);
+
+    this.currentUser = newAccount;
+    localStorage.setItem('linguaforge_active_user', newAccount.username);
+
+    // Initialize user storage strictly from 0 (A1)
+    this.initZeroUserStorage(cleanUser);
+
+    return newAccount;
+  }
+
+  async loginOrRegisterGuest() {
+    const guestUser = 'misafir';
+    const accounts = this.getAccounts();
+    let account = accounts.find(a => a.username === guestUser);
+
+    if (!account) {
+      account = {
+        id: 'guest_' + Date.now(),
+        username: guestUser,
+        displayName: 'Misafir Öğrenci',
+        password: '123',
+        createdAt: new Date().toISOString(),
+        cefr_level: 'A1'
+      };
+      accounts.push(account);
+      this.saveAccounts(accounts);
+      this.initZeroUserStorage(guestUser);
+    }
+
+    this.currentUser = account;
+    localStorage.setItem('linguaforge_active_user', account.username);
+    this.ensureUserStorage(guestUser);
+    return account;
+  }
+
+  logout() {
+    this.currentUser = null;
+    localStorage.removeItem('linguaforge_active_user');
+  }
+
+  getUserStorageKey(key) {
+    const u = this.currentUser ? this.currentUser.username : 'guest';
+    return `linguaforge_u_${u}_${key}`;
+  }
+
+  getUserData(key) {
+    try {
+      const raw = localStorage.getItem(this.getUserStorageKey(key));
       return raw ? JSON.parse(raw) : null;
     } catch (e) {
       return null;
     }
   }
 
-  set(key, val) {
+  setUserData(key, val) {
     try {
-      localStorage.setItem(this.storageKeyPrefix + key, JSON.stringify(val));
+      localStorage.setItem(this.getUserStorageKey(key), JSON.stringify(val));
     } catch (e) {}
+  }
+
+  initZeroUserStorage(username) {
+    const prefix = `linguaforge_u_${username}_`;
+    
+    // 0'dan Başlangıç İstatistikleri (0 XP, 0 dk, 0 kelime)
+    const zeroStats = {
+      xp: 0,
+      level: 1,
+      current_streak: 1,
+      longest_streak: 1,
+      total_study_minutes: 0,
+      total_words_learned: 0,
+      total_grammar_mastered: 0,
+      total_errors_resolved: 0,
+      last_study_date: new Date().toISOString().slice(0, 10)
+    };
+
+    // 10 Beceri: Hepsi A1 seviyesinde 0 puanda
+    const zeroSkills = {
+      grammar: { level: 'A1', sublevel: '-', score: 0 },
+      vocabulary: { level: 'A1', sublevel: '-', score: 0 },
+      reading: { level: 'A1', sublevel: '-', score: 0 },
+      listening: { level: 'A1', sublevel: '-', score: 0 },
+      writing: { level: 'A1', sublevel: '-', score: 0 },
+      speaking: { level: 'A1', sublevel: '-', score: 0 },
+      pronunciation: { level: 'A1', sublevel: '-', score: 0 },
+      sentence_formation: { level: 'A1', sublevel: '-', score: 0 },
+      comprehension: { level: 'A1', sublevel: '-', score: 0 },
+      communication: { level: 'A1', sublevel: '-', score: 0 }
+    };
+
+    // Temiz hata defteri
+    const zeroErrors = [];
+
+    // Başlangıç A1 kelime kartları
+    const vocab = (staticData.vocabulary_items || []).map((v, i) => ({
+      ...v,
+      id: v.id || i + 1,
+      examples: typeof v.examples === 'string' ? JSON.parse(v.examples || '[]') : v.examples,
+      synonyms: typeof v.synonyms === 'string' ? JSON.parse(v.synonyms || '[]') : v.synonyms,
+      antonyms: typeof v.antonyms === 'string' ? JSON.parse(v.antonyms || '[]') : v.antonyms,
+      collocations: typeof v.collocations === 'string' ? JSON.parse(v.collocations || '[]') : v.collocations,
+      interval: 0,
+      ease_factor: 2.5,
+      repetitions: 0,
+      due: true
+    }));
+
+    localStorage.setItem(prefix + 'stats', JSON.stringify(zeroStats));
+    localStorage.setItem(prefix + 'skills', JSON.stringify(zeroSkills));
+    localStorage.setItem(prefix + 'errors', JSON.stringify(zeroErrors));
+    localStorage.setItem(prefix + 'srs_items', JSON.stringify(vocab));
+    localStorage.removeItem(prefix + 'latest_assessment');
+    localStorage.setItem(prefix + 'completed_tasks', JSON.stringify([]));
+  }
+
+  ensureUserStorage(username) {
+    const prefix = `linguaforge_u_${username}_`;
+    if (!localStorage.getItem(prefix + 'stats') || !localStorage.getItem(prefix + 'skills')) {
+      this.initZeroUserStorage(username);
+    }
   }
 
   // Dashboard
   async getDashboard() {
-    const stats = this.get('stats');
-    const skills = this.get('skills');
-    const errors = this.get('errors') || [];
-    const srs = this.get('srs_items') || [];
+    if (!this.currentUser) {
+      throw new Error('AUTH_REQUIRED');
+    }
+
+    const stats = this.getUserData('stats') || {
+      xp: 0,
+      level: 1,
+      current_streak: 1,
+      longest_streak: 1,
+      total_study_minutes: 0,
+      total_words_learned: 0,
+      total_grammar_mastered: 0,
+      total_errors_resolved: 0
+    };
+
+    const skills = this.getUserData('skills') || {
+      grammar: { level: 'A1', sublevel: '', score: 0 },
+      vocabulary: { level: 'A1', sublevel: '', score: 0 },
+      reading: { level: 'A1', sublevel: '', score: 0 },
+      listening: { level: 'A1', sublevel: '', score: 0 },
+      writing: { level: 'A1', sublevel: '', score: 0 },
+      speaking: { level: 'A1', sublevel: '', score: 0 },
+      pronunciation: { level: 'A1', sublevel: '', score: 0 },
+      sentence_formation: { level: 'A1', sublevel: '', score: 0 },
+      comprehension: { level: 'A1', sublevel: '', score: 0 },
+      communication: { level: 'A1', sublevel: '', score: 0 }
+    };
+
+    const errors = this.getUserData('errors') || [];
+    const srs = this.getUserData('srs_items') || [];
     const dueCount = srs.filter(i => i.due).length;
+
+    const latestAssessment = this.getUserData('latest_assessment') || {
+      overall_cefr: 'A1',
+      results: { overallCEFR: 'A1' }
+    };
 
     return {
       user: {
-        displayName: localStorage.getItem('linguaforge_display_name') || 'English Learner',
+        username: this.currentUser.username,
+        displayName: this.currentUser.displayName || this.currentUser.username,
         onboardingComplete: true
       },
       stats,
       skills,
       dailyTasks: {
         tasks: [
-          { id: 'task-vocab', skill: 'vocabulary', description: 'Review 10 vocabulary cards in Spaced Repetition queue', targetView: 'vocabulary' },
-          { id: 'task-grammar', skill: 'grammar', description: 'Complete 1 exercise in Grammar Academy', targetView: 'grammar' },
-          { id: 'task-reading', skill: 'reading', description: 'Read 1 graded article and answer comprehension questions', targetView: 'reading' },
-          { id: 'task-speaking', skill: 'speaking', description: 'Practice 1 conversational speaking scenario', targetView: 'speaking' }
+          { id: 'task-vocab', skill: 'vocabulary', description: 'A1 Temel Kelime Kartlarından 5 tanesini incele ve tekrar et', targetView: 'vocabulary' },
+          { id: 'task-grammar', skill: 'grammar', description: 'Gramer Akademisinden 1 başlangıç konusunu ve kurallarını oku', targetView: 'grammar' },
+          { id: 'task-reading', skill: 'reading', description: '1 başlangıç (A1) okuma metnini incele ve sorularını yanıtla', targetView: 'reading' },
+          { id: 'task-speaking', skill: 'speaking', description: '1 günlük konuşma senaryosunu sesli olarak dene', targetView: 'speaking' }
         ],
-        completed_tasks: this.get('completed_tasks') || []
+        completed_tasks: this.getUserData('completed_tasks') || []
       },
       recentErrors: errors.filter(e => !e.resolved),
       reviewStats: { dueToday: dueCount, totalItems: srs.length },
       weekStudy: [
-        { date: '2026-09-21', total_minutes: 25 },
-        { date: '2026-09-22', total_minutes: 30 },
-        { date: '2026-09-23', total_minutes: 20 },
-        { date: '2026-09-24', total_minutes: 35 },
-        { date: '2026-09-25', total_minutes: 15 },
-        { date: '2026-09-26', total_minutes: 40 },
-        { date: '2026-09-27', total_minutes: 25 }
+        { date: '2026-09-21', total_minutes: 0 },
+        { date: '2026-09-22', total_minutes: 0 },
+        { date: '2026-09-23', total_minutes: 0 },
+        { date: '2026-09-24', total_minutes: 0 },
+        { date: '2026-09-25', total_minutes: 0 },
+        { date: '2026-09-26', total_minutes: 0 },
+        { date: '2026-09-27', total_minutes: stats.total_study_minutes || 0 }
       ],
-      latestAssessment: this.get('latest_assessment') || {
-        overall_cefr: 'B1',
-        results: { overallCEFR: 'B1' }
-      }
+      latestAssessment
     };
   }
 
@@ -143,19 +291,43 @@ class LocalService {
     this.currentAssessment = {
       id: assessmentId,
       answers: [],
+      correctCount: 0,
+      totalCount: 0,
       skillsEvaluated: {}
     };
     return {
       assessmentId,
       skills: ['grammar', 'vocabulary', 'reading', 'listening', 'writing', 'speaking', 'pronunciation', 'sentence_formation', 'comprehension', 'communication'],
-      message: 'Diagnostic assessment started.'
+      message: 'Seviye belirleme sınavı başlatıldı.'
     };
+  }
+
+  async skipAssessmentToA1() {
+    const result = {
+      overallCEFR: 'A1',
+      totalQuestions: 0,
+      totalCorrect: 0,
+      skills: {
+        grammar: { level: 'A1', sublevel: '', score: 10 },
+        vocabulary: { level: 'A1', sublevel: '', score: 10 },
+        reading: { level: 'A1', sublevel: '', score: 10 },
+        listening: { level: 'A1', sublevel: '', score: 10 },
+        writing: { level: 'A1', sublevel: '', score: 10 },
+        speaking: { level: 'A1', sublevel: '', score: 10 },
+        pronunciation: { level: 'A1', sublevel: '', score: 10 },
+        sentence_formation: { level: 'A1', sublevel: '', score: 10 },
+        comprehension: { level: 'A1', sublevel: '', score: 10 },
+        communication: { level: 'A1', sublevel: '', score: 10 }
+      }
+    };
+    this.setUserData('latest_assessment', result);
+    return result;
   }
 
   async getAssessmentQuestions(assessmentId, skill) {
     const all = staticData.assessment_question_bank || [];
     const filtered = all.filter(q => q.skill === skill);
-    const questions = filtered.slice(0, 4).map(q => ({
+    const questions = filtered.slice(0, 3).map(q => ({
       id: q.id,
       type: q.question_type,
       question: q.question,
@@ -166,29 +338,41 @@ class LocalService {
 
     return {
       skill,
-      targetLevel: 'A2',
+      targetLevel: 'A1-A2',
       questions
     };
   }
 
-  async submitAssessmentAnswer(assessmentId, questionBankId, userAnswer, responseTimeMs) {
+  async submitAssessmentAnswer(assessmentId, questionBankId, userAnswer) {
     const all = staticData.assessment_question_bank || [];
     const q = all.find(item => item.id === questionBankId) || all[0];
     const isCorrect = userAnswer.trim().toLowerCase() === q.correct_answer.trim().toLowerCase();
 
+    if (this.currentAssessment) {
+      this.currentAssessment.totalCount = (this.currentAssessment.totalCount || 0) + 1;
+      if (isCorrect) {
+        this.currentAssessment.correctCount = (this.currentAssessment.correctCount || 0) + 1;
+      }
+      if (!this.currentAssessment.skillsEvaluated[q.skill]) {
+        this.currentAssessment.skillsEvaluated[q.skill] = { correct: 0, total: 0 };
+      }
+      this.currentAssessment.skillsEvaluated[q.skill].total += 1;
+      if (isCorrect) this.currentAssessment.skillsEvaluated[q.skill].correct += 1;
+    }
+
     if (!isCorrect) {
-      // Log to error bank
-      const errors = this.get('errors') || [];
+      // Hata defterine kaydet
+      const errors = this.getUserData('errors') || [];
       errors.unshift({
         id: Date.now(),
         skill: q.skill,
         error_text: userAnswer,
         correction: q.correct_answer,
-        explanation: q.explanation || 'Question mistake in diagnostic test.',
+        explanation: q.explanation_tr || q.explanation || 'Seviye belirleme sınavında yapılan hata.',
         occurrence_count: 1,
         resolved: 0
       });
-      this.set('errors', errors);
+      this.setUserData('errors', errors);
     }
 
     return {
@@ -197,7 +381,7 @@ class LocalService {
       score: isCorrect ? 1 : 0,
       correctAnswer: q.correct_answer,
       explanation: q.explanation,
-      explanationTr: q.explanation_tr,
+      explanationTr: q.explanation_tr || q.explanation,
       skill: q.skill,
       cefrLevel: q.cefr_level,
       topic: q.topic
@@ -205,40 +389,60 @@ class LocalService {
   }
 
   async completeAssessment(assessmentId) {
-    const skills = {
-      grammar: { level: 'B1', sublevel: '', score: 75, correct: 3, total: 4, accuracy: 75 },
-      vocabulary: { level: 'A2', sublevel: '+', score: 70, correct: 3, total: 4, accuracy: 75 },
-      reading: { level: 'B1', sublevel: '+', score: 80, correct: 4, total: 4, accuracy: 100 },
-      listening: { level: 'A2', sublevel: '+', score: 65, correct: 3, total: 4, accuracy: 75 },
-      writing: { level: 'A2', sublevel: '', score: 55, correct: 2, total: 4, accuracy: 50 },
-      speaking: { level: 'A2', sublevel: '', score: 50, correct: 2, total: 4, accuracy: 50 },
-      pronunciation: { level: 'A2', sublevel: '+', score: 60, correct: 3, total: 4, accuracy: 75 },
-      sentence_formation: { level: 'B1', sublevel: '-', score: 65, correct: 3, total: 4, accuracy: 75 },
-      comprehension: { level: 'B1', sublevel: '+', score: 85, correct: 4, total: 4, accuracy: 100 },
-      communication: { level: 'A2', sublevel: '+', score: 60, correct: 3, total: 4, accuracy: 75 }
-    };
+    const ca = this.currentAssessment || { correctCount: 0, totalCount: 1, skillsEvaluated: {} };
+    const totalQ = Math.max(ca.totalCount || 1, 1);
+    const correctQ = ca.correctCount || 0;
+    const ratio = correctQ / totalQ;
+
+    let overall = 'A1';
+    if (ratio >= 0.85) overall = 'B2';
+    else if (ratio >= 0.65) overall = 'B1';
+    else if (ratio >= 0.40) overall = 'A2';
+    else overall = 'A1';
+
+    const skillKeys = ['grammar', 'vocabulary', 'reading', 'listening', 'writing', 'speaking', 'pronunciation', 'sentence_formation', 'comprehension', 'communication'];
+    const skills = {};
+
+    skillKeys.forEach(k => {
+      const ev = ca.skillsEvaluated[k] || { correct: 0, total: 1 };
+      const skillRatio = ev.total > 0 ? (ev.correct / ev.total) : 0;
+      let lvl = 'A1';
+      if (skillRatio >= 0.85) lvl = 'B2';
+      else if (skillRatio >= 0.65) lvl = 'B1';
+      else if (skillRatio >= 0.40) lvl = 'A2';
+      else lvl = 'A1';
+
+      const sc = Math.round(skillRatio * 100);
+      skills[k] = { level: lvl, sublevel: '', score: sc, correct: ev.correct, total: ev.total, accuracy: sc };
+    });
 
     const result = {
-      overallCEFR: 'B1',
+      overallCEFR: overall,
       skills,
       weakAreas: [
-        { skill: 'speaking', level: 'A2', detail: 'Hesitations and turn-taking strategies' },
-        { skill: 'writing', level: 'A2', detail: 'Connector usage and formal register' }
+        { skill: 'speaking', level: 'A1', detail: 'Günlük basit diyaloglar ve temel kelimeler' },
+        { skill: 'grammar', level: 'A1', detail: 'To Be fiili ve temel zaman kalıpları' }
       ],
       strongAreas: [
-        { skill: 'reading', level: 'B1+', detail: 'High inference and speed accuracy' },
-        { skill: 'comprehension', level: 'B1+', detail: 'Intuitive idiom comprehension' }
+        { skill: 'comprehension', level: overall, detail: 'Temel bağlam kavrama' }
       ],
-      totalQuestions: 40,
-      totalCorrect: 29
+      totalQuestions: totalQ,
+      totalCorrect: correctQ
     };
 
-    this.set('latest_assessment', result);
-    const currSkills = this.get('skills') || {};
+    this.setUserData('latest_assessment', result);
+    const currSkills = this.getUserData('skills') || {};
     for (const [k, v] of Object.entries(skills)) {
       currSkills[k] = { level: v.level, sublevel: v.sublevel, score: v.score };
     }
-    this.set('skills', currSkills);
+    this.setUserData('skills', currSkills);
+
+    // Give completion XP
+    const stats = this.getUserData('stats');
+    if (stats) {
+      stats.xp = (stats.xp || 0) + 50;
+      this.setUserData('stats', stats);
+    }
 
     return result;
   }
@@ -273,22 +477,39 @@ class LocalService {
     const isCorrect = answer.trim().toLowerCase() === ex.correct_answer.trim().toLowerCase();
 
     // Reward XP
-    const stats = this.get('stats');
-    stats.xp += isCorrect ? 15 : 5;
-    this.set('stats', stats);
+    const stats = this.getUserData('stats') || { xp: 0 };
+    stats.xp = (stats.xp || 0) + (isCorrect ? 15 : 5);
+    if (isCorrect) {
+      stats.total_grammar_mastered = (stats.total_grammar_mastered || 0) + 1;
+    }
+    this.setUserData('stats', stats);
+
+    if (!isCorrect) {
+      const errors = this.getUserData('errors') || [];
+      errors.unshift({
+        id: Date.now(),
+        skill: 'grammar',
+        error_text: answer,
+        correction: ex.correct_answer,
+        explanation: ex.explanation_tr || ex.explanation || 'Gramer kural hatası.',
+        occurrence_count: 1,
+        resolved: 0
+      });
+      this.setUserData('errors', errors);
+    }
 
     return {
       isCorrect,
       correctAnswer: ex.correct_answer,
-      feedback: isCorrect ? 'Excellent! Correct usage.' : `Incorrect. The target form is: ${ex.correct_answer}`,
+      feedback: isCorrect ? 'Tebrikler! Doğru cevap.' : `Yanlış. Doğru biçim: ${ex.correct_answer}`,
       explanation: ex.explanation,
-      explanationTr: ex.explanation_tr
+      explanationTr: ex.explanation_tr || ex.explanation
     };
   }
 
   // Vocabulary
-  async getVocabularyItems(params = {}) {
-    const items = (this.get('srs_items') || []).map(v => ({
+  async getVocabularyItems() {
+    const items = (this.getUserData('srs_items') || []).map(v => ({
       ...v,
       examples: typeof v.examples === 'string' ? JSON.parse(v.examples) : v.examples,
       collocations: typeof v.collocations === 'string' ? JSON.parse(v.collocations) : v.collocations
@@ -297,22 +518,25 @@ class LocalService {
   }
 
   async getReviewQueue() {
-    const items = (this.get('srs_items') || []).filter(i => i.due);
+    const items = (this.getUserData('srs_items') || []).filter(i => i.due);
     return { items, dueToday: items.length };
   }
 
   async submitReview(itemId, rating) {
-    const items = this.get('srs_items') || [];
+    const items = this.getUserData('srs_items') || [];
     const idx = items.findIndex(i => i.id === itemId);
     if (idx !== -1) {
-      items[idx].due = false;
-      items[idx].repetitions += 1;
-      this.set('srs_items', items);
+      // Rating: 0 = again, 1 = hard, 2 = good, 3 = easy
+      if (rating >= 2) {
+        items[idx].due = false;
+        items[idx].repetitions = (items[idx].repetitions || 0) + 1;
+      }
+      this.setUserData('srs_items', items);
     }
-    const stats = this.get('stats');
-    stats.xp += 10;
-    stats.total_words_learned += 1;
-    this.set('stats', stats);
+    const stats = this.getUserData('stats') || { xp: 0 };
+    stats.xp = (stats.xp || 0) + (rating >= 2 ? 10 : 3);
+    stats.total_words_learned = (stats.total_words_learned || 0) + (rating >= 2 ? 1 : 0);
+    this.setUserData('stats', stats);
     return { success: true };
   }
 
@@ -350,9 +574,9 @@ class LocalService {
     const score = Math.round((correct / Math.max(questions.length, 1)) * 100);
     const wordsPerMinute = Math.round((material.word_count / Math.max(readingTimeSeconds, 10)) * 60);
 
-    const stats = this.get('stats');
-    stats.xp += score >= 70 ? 30 : 15;
-    this.set('stats', stats);
+    const stats = this.getUserData('stats') || { xp: 0 };
+    stats.xp = (stats.xp || 0) + (score >= 70 ? 30 : 15);
+    this.setUserData('stats', stats);
 
     return {
       score,
@@ -396,6 +620,10 @@ class LocalService {
     });
 
     const score = Math.round((correct / Math.max(questions.length, 1)) * 100);
+    const stats = this.getUserData('stats') || { xp: 0 };
+    stats.xp = (stats.xp || 0) + (score >= 70 ? 25 : 10);
+    this.setUserData('stats', stats);
+
     return {
       score,
       correctCount: correct,
@@ -410,24 +638,28 @@ class LocalService {
     return staticData.writing_prompts || [];
   }
 
-  async submitWriting(promptId, text, timeSpentSeconds) {
-    const words = text.split(/\s+/).length;
+  async submitWriting(promptId, text) {
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
     const sentences = (text.match(/[^.!?]+[.!?]+/g) || []).length || 1;
     const avgLen = (words / sentences).toFixed(1);
 
-    const score = Math.min(100, Math.max(60, 50 + Math.round(words / 4)));
-    const cefr = score >= 85 ? 'B2' : (score >= 70 ? 'B1' : 'A2');
+    const score = Math.min(100, Math.max(50, 40 + Math.round(words * 1.5)));
+    const cefr = score >= 85 ? 'B2' : (score >= 65 ? 'B1' : 'A2');
+
+    const stats = this.getUserData('stats') || { xp: 0 };
+    stats.xp = (stats.xp || 0) + 30;
+    this.setUserData('stats', stats);
 
     return {
       overallScore: score,
       cefrLevel: cefr,
-      grammarScore: 82,
-      vocabularyScore: 78,
-      structureScore: 84,
+      grammarScore: Math.min(95, score + 5),
+      vocabularyScore: score,
+      structureScore: Math.max(50, score - 5),
       feedback: [
-        `Good syntactic variety with an average sentence length of ${avgLen} words.`,
-        'Strong use of contextual vocabulary aligned with the prompt requirements.',
-        'Consider incorporating more cohesive discourse markers (e.g., "Furthermore", "In contrast", "Consequently") to boost narrative flow.'
+        `Ortalama ${avgLen} kelimelik cümlelerle ${words} kelime yazdınız.`,
+        'Kelime seçiminiz konuya uygun ve anlaşılır.',
+        'İpucu: Cümleleri birbirine "and", "but", "because" veya "so" gibi bağlaçlarla bağlayarak daha akıcı paragraflar oluşturabilirsiniz.'
       ],
       errors: []
     };
@@ -450,21 +682,21 @@ class LocalService {
   }
 
   // Errors
-  async getErrors(params = {}) {
-    const errors = this.get('errors') || [];
+  async getErrors() {
+    const errors = this.getUserData('errors') || [];
     return { errors };
   }
 
   async resolveError(id) {
-    const errors = this.get('errors') || [];
+    const errors = this.getUserData('errors') || [];
     const idx = errors.findIndex(e => String(e.id) === String(id));
     if (idx !== -1) {
       errors[idx].resolved = 1;
-      this.set('errors', errors);
+      this.setUserData('errors', errors);
     }
-    const stats = this.get('stats');
-    stats.total_errors_resolved += 1;
-    this.set('stats', stats);
+    const stats = this.getUserData('stats') || { total_errors_resolved: 0 };
+    stats.total_errors_resolved = (stats.total_errors_resolved || 0) + 1;
+    this.setUserData('stats', stats);
     return { success: true };
   }
 

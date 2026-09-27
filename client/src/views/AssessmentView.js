@@ -1,6 +1,7 @@
 /**
  * Diagnostic Assessment View
- * Evaluates 10 skills with CEFR scoring & adaptive question delivery
+ * 10-skill CEFR diagnostic test with Turkish instructions
+ * Includes direct option to skip test and start from Level 0 (A1)
  */
 import { api } from '../api.js';
 import { state } from '../state.js';
@@ -15,10 +16,21 @@ export class AssessmentView {
       'writing', 'speaking', 'pronunciation', 'sentence_formation', 
       'comprehension', 'communication'
     ];
+    this.skillNamesTr = {
+      grammar: 'Dilbilgisi (Grammar)',
+      vocabulary: 'Kelime Haznesi (Vocabulary)',
+      reading: 'Okuma & Anlama (Reading)',
+      listening: 'Dinleme & Algılama (Listening)',
+      writing: 'Yazma Becerisi (Writing)',
+      speaking: 'Konuşma & Akıcılık (Speaking)',
+      pronunciation: 'Telaffuz & Aksan (Pronunciation)',
+      sentence_formation: 'Cümle Kurma (Syntax)',
+      comprehension: 'Kavrama Hızı (Comprehension)',
+      communication: 'Doğal İletişim (Communication)'
+    };
     this.currentSkillIndex = 0;
     this.currentQuestions = [];
     this.currentQuestionIndex = 0;
-    this.questionStartTime = Date.now();
     this.selectedOption = null;
     this.assessmentResults = null;
   }
@@ -32,42 +44,52 @@ export class AssessmentView {
     this.container.innerHTML = `
       <div class="assessment-intro-wrapper">
         <div class="card assessment-intro-card">
-          <div class="assessment-badge-pill">CEFR Diagnostic & Placement</div>
-          <h1 class="assessment-title">10-Skill Comprehensive Diagnostic Audit</h1>
+          <div class="assessment-badge-pill">CEFR Seviye Belirleme & Teşhis</div>
+          <h1 class="assessment-title">10 Becerili Kapsamlı Seviye Sınavı</h1>
           <p class="assessment-desc">
-            Unlike superficial multiple-choice quizzes, this diagnostic rigorously benchmarks your receptive and productive English across 10 vital proficiencies:
+            Bu değerlendirme; sadece çoktan seçmeli ezber testi değil, İngilizceyi anlama ve üretme kapasitenizi 10 temel boyutta analiz eder:
           </p>
           <div class="skills-preview-grid">
-            <div class="skill-tag-pill">📖 Grammar</div>
-            <div class="skill-tag-pill">📚 Vocabulary</div>
-            <div class="skill-tag-pill">📰 Reading</div>
-            <div class="skill-tag-pill">🎧 Listening</div>
-            <div class="skill-tag-pill">✍️ Writing</div>
-            <div class="skill-tag-pill">🗣️ Speaking</div>
-            <div class="skill-tag-pill">🎙️ Pronunciation</div>
-            <div class="skill-tag-pill">🧩 Sentence Syntax</div>
-            <div class="skill-tag-pill">💡 Comprehension</div>
-            <div class="skill-tag-pill">🤝 Real Communication</div>
+            <div class="skill-tag-pill">📖 Dilbilgisi</div>
+            <div class="skill-tag-pill">📚 Kelime</div>
+            <div class="skill-tag-pill">📰 Okuma</div>
+            <div class="skill-tag-pill">🎧 Dinleme</div>
+            <div class="skill-tag-pill">✍️ Yazma</div>
+            <div class="skill-tag-pill">🗣️ Konuşma</div>
+            <div class="skill-tag-pill">🎙️ Telaffuz</div>
+            <div class="skill-tag-pill">🧩 Cümle Kurma</div>
+            <div class="skill-tag-pill">💡 Kavrama</div>
+            <div class="skill-tag-pill">🤝 Doğal İletişim</div>
           </div>
           <div class="assessment-notice">
-            <span class="notice-icon">ℹ️</span>
-            <span>Takes ~5-10 minutes. Evaluates grammar accuracy, collocations, Turkish-interference traps, and pragmatic fluency.</span>
+            <span class="notice-icon">💡</span>
+            <span>Yaklaşık 5-10 dakika sürer. İsterseniz sınava girebilir, isterseniz doğrudan A1 (Sıfırdan) başlayabilirsiniz.</span>
           </div>
-          <button class="btn btn-primary btn-lg" id="start-assessment-btn">
-            Begin Diagnostic Assessment →
-          </button>
+          <div class="assessment-actions-row">
+            <button class="btn btn-primary btn-lg" id="start-assessment-btn">
+              🎯 Sınava Başla (5-10 Dk) →
+            </button>
+            <button class="btn btn-secondary btn-lg" id="skip-assessment-btn">
+              🚀 Sınavı Atla, Doğrudan 0'dan (A1) Başla
+            </button>
+          </div>
         </div>
       </div>
     `;
 
     document.getElementById('start-assessment-btn')?.addEventListener('click', () => this.startAssessment());
+    document.getElementById('skip-assessment-btn')?.addEventListener('click', async () => {
+      await api.skipAssessmentToA1();
+      state.showToast("Başlangıç seviyeniz A1 olarak ayarlandı. 0'dan eğitime hazırsınız! 🚀", 'success');
+      state.setView('dashboard');
+    });
   }
 
   async startAssessment() {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Initializing diagnostic assessment engine...</p>
+        <p>Seviye belirleme sınav motoru başlatılıyor...</p>
       </div>
     `;
 
@@ -77,17 +99,19 @@ export class AssessmentView {
       this.currentSkillIndex = 0;
       await this.loadSkillQuestions();
     } catch (err) {
-      state.showToast('Failed to start assessment: ' + err.message, 'error');
+      state.showToast('Sınav başlatılamadı: ' + err.message, 'error');
       this.renderIntro();
     }
   }
 
   async loadSkillQuestions() {
     const currentSkill = this.skills[this.currentSkillIndex];
+    const skillNameTr = this.skillNamesTr[currentSkill] || currentSkill;
+
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Loading questions for ${currentSkill.toUpperCase()}...</p>
+        <p>${skillNameTr} soruları hazırlanıyor...</p>
       </div>
     `;
 
@@ -96,26 +120,25 @@ export class AssessmentView {
       this.currentQuestions = data.questions || [];
       this.currentQuestionIndex = 0;
       if (this.currentQuestions.length === 0) {
-        // Skip to next skill if no questions found
         this.nextSkill();
       } else {
         this.renderQuestion();
       }
     } catch (err) {
-      state.showToast(`Error loading questions for ${currentSkill}: ` + err.message, 'error');
+      state.showToast(`Hata: ` + err.message, 'error');
       this.nextSkill();
     }
   }
 
   renderQuestion() {
     const skill = this.skills[this.currentSkillIndex];
+    const skillNameTr = this.skillNamesTr[skill] || skill;
     const q = this.currentQuestions[this.currentQuestionIndex];
-    this.questionStartTime = Date.now();
     this.selectedOption = null;
 
     const progressPct = Math.round(
-      ((this.currentSkillIndex * this.currentQuestions.length + this.currentQuestionIndex) /
-      (this.skills.length * 4)) * 100
+      ((this.currentSkillIndex * Math.max(this.currentQuestions.length, 1) + this.currentQuestionIndex) /
+      (this.skills.length * 3)) * 100
     );
 
     this.container.innerHTML = `
@@ -123,124 +146,116 @@ export class AssessmentView {
         <!-- Header Progress -->
         <div class="assessment-topbar">
           <div class="assessment-skill-indicator">
-            <span class="skill-name-badge">${skill.replace('_', ' ').toUpperCase()}</span>
-            <span class="skill-step">Skill ${this.currentSkillIndex + 1} of ${this.skills.length}</span>
+            <span class="skill-name-badge">${skillNameTr}</span>
+            <span class="skill-step">Beceri: ${this.currentSkillIndex + 1} / ${this.skills.length}</span>
           </div>
           <div class="progress-bar-wrap">
-            <div class="progress-bar-fill" style="width: ${progressPct}%;"></div>
+            <div class="progress-bar-fill" style="width: ${Math.min(progressPct, 100)}%;"></div>
           </div>
-          <span class="progress-pct">${progressPct}%</span>
+          <span class="progress-pct">%${Math.min(progressPct, 100)}</span>
         </div>
 
         <!-- Question Card -->
         <div class="card question-card">
           <div class="question-meta">
-            <span class="cefr-tag ${q.cefrLevel || 'A2'}">${q.cefrLevel || 'A2'}</span>
-            <span class="question-topic">${q.topic || 'General'}</span>
-            <button class="btn btn-secondary btn-sm tts-btn" id="listen-question-btn" title="Listen to sentence">
-              🔊 Listen
+            <span class="cefr-tag ${q.cefrLevel || 'A1'}">${q.cefrLevel || 'A1'}</span>
+            <span class="question-topic">${q.topic || 'Temel'}</span>
+            <button class="btn btn-secondary btn-sm tts-btn" id="listen-question-btn" title="Soruyu sesli dinle">
+              🔊 Sesli Oku
             </button>
           </div>
 
-          <div class="question-text">${q.question.replace(/\n/g, '<br>')}</div>
+          <div class="question-instruction">
+            <span>Aşağıdaki soruyu okuyun ve en doğru seçeneği işaretleyin:</span>
+          </div>
 
-          <!-- Options -->
-          <div class="options-grid" id="options-container">
+          <div class="question-stem" id="question-text">
+            ${q.question}
+          </div>
+
+          <div class="question-options-list">
             ${(q.options || []).map((opt, i) => `
-              <button class="option-btn" data-option="${opt}">
+              <div class="option-item" data-value="${opt}">
                 <span class="option-letter">${String.fromCharCode(65 + i)}</span>
-                <span class="option-val">${opt}</span>
-              </button>
+                <span class="option-label">${opt}</span>
+              </div>
             `).join('')}
           </div>
 
-          <!-- Feedback Box (Hidden initially) -->
-          <div class="feedback-box" id="feedback-box" style="display: none;">
-            <div class="feedback-status" id="feedback-status"></div>
-            <div class="feedback-explanation" id="feedback-explanation"></div>
-            <div class="feedback-tr" id="feedback-tr"></div>
-          </div>
-
-          <!-- Action Bar -->
-          <div class="question-actions">
+          <div class="question-footer">
             <button class="btn btn-primary btn-lg" id="submit-answer-btn" disabled>
-              Check Answer
-            </button>
-            <button class="btn btn-success btn-lg" id="next-question-btn" style="display: none;">
-              Next Question →
+              Cevabı Onayla →
             </button>
           </div>
         </div>
+
+        <!-- Feedback Card (Initially Hidden) -->
+        <div class="card feedback-card" id="feedback-card" style="display: none;"></div>
       </div>
     `;
 
     this.bindQuestionEvents(q);
   }
 
-  bindQuestionEvents(question) {
-    const optionsContainer = document.getElementById('options-container');
-    const submitBtn = document.getElementById('submit-answer-btn');
-    const nextBtn = document.getElementById('next-question-btn');
-    const feedbackBox = document.getElementById('feedback-box');
-    const ttsBtn = document.getElementById('listen-question-btn');
-
-    // TTS Speak Question
-    ttsBtn?.addEventListener('click', () => {
-      speech.speak(question.question);
+  bindQuestionEvents(q) {
+    document.getElementById('listen-question-btn')?.addEventListener('click', () => {
+      speech.speak(q.question, { rate: 0.9 });
     });
 
-    // Select option
-    optionsContainer?.querySelectorAll('.option-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        optionsContainer.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        this.selectedOption = btn.dataset.option;
-        submitBtn.disabled = false;
+    document.querySelectorAll('.option-item').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.option-item').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        this.selectedOption = el.dataset.value;
+        const submitBtn = document.getElementById('submit-answer-btn');
+        if (submitBtn) submitBtn.disabled = false;
       });
     });
 
-    // Submit answer
-    submitBtn?.addEventListener('click', async () => {
-      if (!this.selectedOption) return;
-      submitBtn.disabled = true;
-
-      const responseTime = Date.now() - this.questionStartTime;
-      try {
-        const result = await api.submitAssessmentAnswer(
-          this.assessmentId,
-          question.id,
-          this.selectedOption,
-          responseTime
-        );
-
-        // Show feedback
-        feedbackBox.style.display = 'block';
-        const isCorrect = result.isCorrect;
-
-        feedbackBox.className = `feedback-box ${isCorrect ? 'correct' : 'incorrect'}`;
-        document.getElementById('feedback-status').innerHTML = isCorrect
-          ? '🎉 <strong>Correct!</strong> Well done.'
-          : `❌ <strong>Incorrect.</strong> Correct answer: <em>${result.correctAnswer}</em>`;
-        document.getElementById('feedback-explanation').textContent = result.explanation || '';
-        document.getElementById('feedback-tr').textContent = result.explanationTr ? `Türkçe Açıklama: ${result.explanationTr}` : '';
-
-        // Highlight selected & correct options
-        optionsContainer.querySelectorAll('.option-btn').forEach(b => {
-          b.disabled = true;
-          if (b.dataset.option === result.correctAnswer) b.classList.add('is-correct');
-          if (b.dataset.option === this.selectedOption && !isCorrect) b.classList.add('is-wrong');
-        });
-
-        submitBtn.style.display = 'none';
-        nextBtn.style.display = 'inline-flex';
-      } catch (err) {
-        state.showToast('Error submitting answer: ' + err.message, 'error');
-        submitBtn.disabled = false;
+    document.getElementById('submit-answer-btn')?.addEventListener('click', () => {
+      if (this.selectedOption) {
+        this.submitAnswer(q.id, this.selectedOption);
       }
     });
+  }
 
-    // Next question
-    nextBtn?.addEventListener('click', () => {
+  async submitAnswer(questionId, answer) {
+    const submitBtn = document.getElementById('submit-answer-btn');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Kontrol ediliyor...';
+    }
+
+    try {
+      const result = await api.submitAssessmentAnswer(this.assessmentId, questionId, answer);
+      this.showQuestionFeedback(result);
+    } catch (err) {
+      state.showToast('Cevap kaydedilemedi: ' + err.message, 'error');
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  showQuestionFeedback(result) {
+    const card = document.getElementById('feedback-card');
+    if (!card) return;
+
+    card.className = `card feedback-card ${result.isCorrect ? 'correct' : 'incorrect'}`;
+    card.innerHTML = `
+      <div class="feedback-header">
+        <span class="feedback-icon">${result.isCorrect ? '✅' : '❌'}</span>
+        <h3 class="feedback-title">${result.isCorrect ? 'Doğru Cevap!' : 'Yanlış Cevap'}</h3>
+      </div>
+      <div class="feedback-body">
+        ${!result.isCorrect ? `<p class="correct-answer-text"><strong>Doğru seçenek:</strong> ${result.correctAnswer}</p>` : ''}
+        <p class="explanation-text">${result.explanationTr || result.explanation || ''}</p>
+      </div>
+      <button class="btn btn-primary" id="btn-next-question">
+        Sonraki Soruya Geç →
+      </button>
+    `;
+    card.style.display = 'block';
+
+    document.getElementById('btn-next-question')?.addEventListener('click', () => {
       this.currentQuestionIndex++;
       if (this.currentQuestionIndex < this.currentQuestions.length) {
         this.renderQuestion();
@@ -263,87 +278,66 @@ export class AssessmentView {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Analyzing responses and synthesizing your CEFR mastery profile...</p>
+        <p>Seviye karneniz ve öğrenme haritanız hesaplanıyor...</p>
       </div>
     `;
 
     try {
       this.assessmentResults = await api.completeAssessment(this.assessmentId);
-      this.renderReport();
+      this.renderResults();
     } catch (err) {
-      state.showToast('Failed to complete assessment: ' + err.message, 'error');
+      state.showToast('Sonuçlar hesaplanırken hata: ' + err.message, 'error');
       this.renderIntro();
     }
   }
 
-  renderReport() {
+  renderResults() {
     const res = this.assessmentResults;
-    const skills = res.skills || {};
+    const overall = res.overallCEFR || 'A1';
 
     this.container.innerHTML = `
-      <div class="report-wrapper">
-        <div class="card report-card">
-          <div class="report-header">
-            <div class="report-badge">Diagnostic Assessment Complete</div>
-            <h1 class="report-title">Your CEFR Baseline Proficiency Profile</h1>
-            <p class="report-subtitle">Personalized analysis across all 10 communicative competencies</p>
+      <div class="assessment-results-wrapper">
+        <div class="card results-hero-card">
+          <div class="results-badge">Sınav Tamamlandı! 🎉</div>
+          <h1 class="results-title">Tebrikler! Seviye Teşhisiniz Belirlendi</h1>
+          <p class="results-desc">
+            10 temel becerideki yanıtlarınıza göre başlangıç profiliniz oluşturuldu:
+          </p>
+
+          <div class="results-cefr-circle">
+            <span class="cefr-circle-val">${overall}</span>
+            <span class="cefr-circle-lbl">BAŞLANGIÇ SEVİYESİ</span>
           </div>
 
-          <!-- Overall CEFR score hero -->
-          <div class="report-hero-score">
-            <div class="score-circle">
-              <span class="score-label">OVERALL LEVEL</span>
-              <span class="score-val">${res.overallCEFR}</span>
-              <span class="score-pct">${Math.round((res.totalCorrect / Math.max(res.totalQuestions, 1)) * 100)}% Accuracy</span>
-            </div>
-            <div class="score-summary">
-              <h3>Diagnostic Summary</h3>
-              <p>You answered <strong>${res.totalCorrect} of ${res.totalQuestions}</strong> questions correctly across 10 skills.</p>
-              ${res.weakAreas && res.weakAreas.length > 0 ? `
-                <div class="weak-areas-box">
-                  <strong>Priority Development Focus:</strong>
-                  <ul>
-                    ${res.weakAreas.map(w => `<li><strong>${w.skill.toUpperCase()}:</strong> ${w.detail}</li>`).join('')}
-                  </ul>
-                </div>
-              ` : '<p>High competence demonstrated across evaluated areas.</p>'}
-            </div>
-          </div>
-
-          <!-- Skill Breakdown Grid -->
-          <h2 class="section-title">Competency Breakdown</h2>
-          <div class="report-skills-grid">
-            ${Object.entries(skills).map(([skill, data]) => `
-              <div class="report-skill-item">
-                <div class="report-skill-header">
-                  <span class="report-skill-name">${skill.replace('_', ' ').toUpperCase()}</span>
-                  <span class="cefr-tag ${data.level}">${data.display || data.level}</span>
-                </div>
-                <div class="report-skill-bar">
-                  <div class="report-skill-fill" style="width: ${data.accuracy || 40}%;"></div>
-                </div>
-                <div class="report-skill-stat">${data.correct}/${data.total} correct (${data.accuracy || 0}%)</div>
-              </div>
-            `).join('')}
-          </div>
-
-          <div class="report-actions">
-            <button class="btn btn-primary btn-lg" id="apply-plan-btn">
-              Apply Adaptive Curriculum & Go to Dashboard →
+          <div class="results-actions">
+            <button class="btn btn-primary btn-lg" id="btn-go-dashboard">
+              Öğrenme Yoluma Başla →
             </button>
+          </div>
+        </div>
+
+        <div class="card results-breakdown-card">
+          <h2 class="card-title">📊 10 Beceri Karnesi</h2>
+          <div class="results-skills-grid">
+            ${Object.entries(res.skills || {}).map(([key, data]) => {
+              const nameTr = this.skillNamesTr[key] || key;
+              return `
+                <div class="result-skill-row">
+                  <div class="result-skill-name">${nameTr}</div>
+                  <div class="result-skill-bar">
+                    <div class="result-skill-fill" style="width: ${Math.max(data.score, 10)}%;"></div>
+                  </div>
+                  <span class="cefr-tag ${data.level || 'A1'}">${data.level || 'A1'}</span>
+                </div>
+              `;
+            }).join('')}
           </div>
         </div>
       </div>
     `;
 
-    document.getElementById('apply-plan-btn')?.addEventListener('click', async () => {
-      try {
-        await api.generateDailyTasks();
-        state.setView('dashboard');
-        state.showToast('Personalized learning plan active!', 'success');
-      } catch (e) {
-        state.setView('dashboard');
-      }
+    document.getElementById('btn-go-dashboard')?.addEventListener('click', () => {
+      state.setView('dashboard');
     });
   }
 }

@@ -14,6 +14,16 @@ export class GrammarView {
     this.activeCategory = 'all';
     this.currentExerciseIndex = 0;
     this.exercises = [];
+    this.selectedOption = null;
+    this.categoryLabelsTr = {
+      all: 'Tüm Konular',
+      tenses: 'Zamanlar',
+      modals: 'Kipler (Modals)',
+      clauses: 'Yan Cümleler',
+      determiners: 'Belirteçler',
+      prepositions: 'Edatlar',
+      sentence_structure: 'Cümle Yapısı'
+    };
   }
 
   async render(viewport) {
@@ -21,7 +31,7 @@ export class GrammarView {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Loading Grammar Academy curriculum...</p>
+        <p>Gramer Akademisi müfredatı yükleniyor...</p>
       </div>
     `;
 
@@ -36,7 +46,7 @@ export class GrammarView {
     } catch (err) {
       this.container.innerHTML = `
         <div class="card error-card">
-          <h3>Failed to load grammar topics</h3>
+          <h3>Gramer konuları yüklenemedi</h3>
           <p>${err.message}</p>
         </div>
       `;
@@ -49,9 +59,10 @@ export class GrammarView {
       this.selectedTopic = data.topic;
       this.exercises = data.exercises || [];
       this.currentExerciseIndex = 0;
+      this.selectedOption = null;
       this.renderLayout();
     } catch (err) {
-      state.showToast('Failed to load topic details: ' + err.message, 'error');
+      state.showToast('Konu detayları yüklenemedi: ' + err.message, 'error');
     }
   }
 
@@ -72,15 +83,15 @@ export class GrammarView {
         <!-- Sidebar: Topics List -->
         <aside class="grammar-sidebar card">
           <div class="grammar-sidebar-header">
-            <h3>Grammar Curriculum</h3>
-            <span class="topic-count">${this.topics.length} Modules</span>
+            <h3>Gramer Müfredatı</h3>
+            <span class="topic-count">${this.topics.length} Konu</span>
           </div>
 
           <!-- Category filter tabs -->
           <div class="category-tabs">
             ${categories.map(c => `
               <button class="cat-tab ${this.activeCategory === c ? 'active' : ''}" data-cat="${c}">
-                ${c.replace('_', ' ')}
+                ${this.categoryLabelsTr[c] || c}
               </button>
             `).join('')}
           </div>
@@ -89,7 +100,7 @@ export class GrammarView {
             ${filteredTopics.map(topic => `
               <div class="topic-nav-item ${t && t.id === topic.id ? 'active' : ''}" data-slug="${topic.slug}">
                 <div class="topic-nav-left">
-                  <span class="cefr-tag ${topic.cefr_level}">${topic.cefr_level}</span>
+                  <span class="cefr-tag ${topic.cefr_level || 'A1'}">${topic.cefr_level || 'A1'}</span>
                   <span class="topic-nav-name">${topic.name}</span>
                 </div>
                 <span class="topic-nav-arrow">›</span>
@@ -103,7 +114,7 @@ export class GrammarView {
           ${t ? `
             <div class="card topic-header-card">
               <div class="topic-header-top">
-                <span class="cefr-tag ${t.cefr_level}">${t.cefr_level}</span>
+                <span class="cefr-tag ${t.cefr_level || 'A1'}">${t.cefr_level || 'A1'}</span>
                 <span class="topic-category-badge">${(t.category || '').toUpperCase()}</span>
               </div>
               <h1 class="topic-title">${t.name}</h1>
@@ -112,11 +123,11 @@ export class GrammarView {
               <!-- Linguistic & Comparative Explanations -->
               <div class="explanation-grid">
                 <div class="explanation-col english-col">
-                  <h4>🇬🇧 In English</h4>
+                  <h4>🇬🇧 İngilizce Kural</h4>
                   <p>${t.explanation_en || ''}</p>
                 </div>
                 <div class="explanation-col turkish-col">
-                  <h4>🇹🇷 Türkçe Karşılaştırma & Mantık</h4>
+                  <h4>🇹🇷 Türkçe Mantık & Karşılaştırma</h4>
                   <p>${t.explanation_tr || ''}</p>
                 </div>
               </div>
@@ -124,7 +135,7 @@ export class GrammarView {
 
             <!-- Rules & Formulas -->
             <div class="card topic-rules-card">
-              <h3 class="section-title">📐 Key Rules & Structure</h3>
+              <h3 class="section-title">📐 Temel Formül ve Kurallar</h3>
               <ul class="rules-list">
                 ${rules.map(rule => `<li>${rule}</li>`).join('')}
               </ul>
@@ -133,8 +144,8 @@ export class GrammarView {
             <!-- Contextual Examples with TTS -->
             <div class="card topic-examples-card">
               <div class="card-header">
-                <h3 class="card-title">💬 Real Context Examples</h3>
-                <span class="card-subtitle">Click speaker icon to listen</span>
+                <h3 class="card-title">💬 Günlük Hayattan Örnek Cümleler</h3>
+                <span class="card-subtitle">Cümleyi dinlemek için hoparlör simgesine tıklayın</span>
               </div>
               <div class="examples-list">
                 ${examples.map(ex => `
@@ -152,12 +163,12 @@ export class GrammarView {
             <!-- Common Mistakes & Turkish Interference -->
             ${mistakes.length > 0 ? `
               <div class="card topic-mistakes-card">
-                <h3 class="section-title">⚠️ Common Mistakes & L1 Interference</h3>
+                <h3 class="section-title">⚠️ Sık Yapılan Hatalar & Türkçeden Kaynaklanan Yanılgılar</h3>
                 <div class="mistakes-grid">
                   ${mistakes.map(m => `
                     <div class="mistake-item">
-                      <div class="mistake-wrong">❌ ${m.wrong}</div>
-                      <div class="mistake-correct">✅ ${m.correct}</div>
+                      <div class="mistake-wrong">❌ Yanlış: ${m.wrong}</div>
+                      <div class="mistake-correct">✅ Doğru: ${m.correct}</div>
                       <div class="mistake-expl">${m.explanation}</div>
                     </div>
                   `).join('')}
@@ -169,19 +180,19 @@ export class GrammarView {
             <div class="card topic-sandbox-card">
               <div class="card-header">
                 <div>
-                  <h3 class="card-title">✏️ Interactive Practice Sandbox</h3>
-                  <div class="card-subtitle">Test and consolidate this grammar structure</div>
+                  <h3 class="card-title">✏️ Alıştırma ve Pekiştirme</h3>
+                  <div class="card-subtitle">Bu gramer yapısını pratik yaparak pekiştirin</div>
                 </div>
                 <span class="exercise-progress">
-                  ${this.exercises.length > 0 ? `Exercise ${this.currentExerciseIndex + 1} of ${this.exercises.length}` : 'No exercises'}
+                  ${this.exercises.length > 0 ? `Alıştırma ${this.currentExerciseIndex + 1} / ${this.exercises.length}` : 'Alıştırma bulunamadı'}
                 </span>
               </div>
 
-              ${this.exercises.length > 0 ? this.renderExerciseSandbox() : '<p>No exercises available for this topic yet.</p>'}
+              ${this.exercises.length > 0 ? this.renderExerciseSandbox() : '<p>Bu konu için henüz alıştırma eklenmemiş.</p>'}
             </div>
           ` : `
             <div class="card empty-state">
-              <p>Select a grammar topic from the sidebar to begin.</p>
+              <p>Başlamak için sol menüden bir gramer konusu seçin.</p>
             </div>
           `}
         </div>
@@ -198,109 +209,138 @@ export class GrammarView {
     const options = ex.options ? (typeof ex.options === 'string' ? JSON.parse(ex.options) : ex.options) : null;
 
     return `
-      <div class="exercise-box" id="exercise-box">
-        <div class="exercise-prompt">
-          <span class="exercise-type-tag">${ex.exercise_type.replace('_', ' ').toUpperCase()}</span>
-          <div class="exercise-question">${ex.question}</div>
+      <div class="exercise-sandbox">
+        <div class="exercise-prompt-wrap">
+          <div class="exercise-instruction">Aşağıdaki cümleyi uygun seçenekle tamamlayın:</div>
+          <div class="exercise-prompt">${ex.prompt}</div>
         </div>
 
         ${options ? `
-          <div class="exercise-options" id="ex-options">
-            ${options.map(opt => `
-              <button class="exercise-opt-btn" data-val="${opt}">${opt}</button>
+          <div class="exercise-options-grid">
+            ${options.map((opt, i) => `
+              <button class="exercise-opt-btn" data-value="${opt}">
+                <span class="opt-prefix">${String.fromCharCode(65 + i)}</span>
+                <span class="opt-text">${opt}</span>
+              </button>
             `).join('')}
           </div>
         ` : `
-          <div class="exercise-input-wrap">
-            <input type="text" class="exercise-input" id="ex-text-input" placeholder="Type your answer here..." autocomplete="off">
+          <div class="fill-blank-wrap">
+            <input type="text" class="form-input exercise-input" id="exercise-input" placeholder="Cevabınızı buraya yazın..." />
           </div>
         `}
 
-        <div class="exercise-feedback" id="ex-feedback" style="display: none;"></div>
-
         <div class="exercise-actions">
-          <button class="btn btn-primary" id="submit-exercise-btn">Submit Answer</button>
-          <button class="btn btn-secondary" id="next-exercise-btn" style="display: none;">Next Exercise →</button>
+          <button class="btn btn-primary" id="btn-check-exercise" disabled>
+            Cevabı Kontrol Et →
+          </button>
         </div>
+
+        <div class="exercise-feedback-box" id="exercise-feedback" style="display: none;"></div>
       </div>
     `;
   }
 
   bindEvents() {
-    // Category tabs
-    this.container.querySelectorAll('.cat-tab').forEach(btn => {
+    // Topic navigation click
+    document.querySelectorAll('.topic-nav-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const slug = el.dataset.slug;
+        if (slug) this.loadTopic(slug);
+      });
+    });
+
+    // Category filter tabs
+    document.querySelectorAll('.cat-tab').forEach(btn => {
       btn.addEventListener('click', () => {
         this.activeCategory = btn.dataset.cat;
         this.renderLayout();
       });
     });
 
-    // Topic selection
-    this.container.querySelectorAll('.topic-nav-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const slug = item.dataset.slug;
-        if (slug) this.loadTopic(slug);
+    // TTS buttons for examples
+    document.querySelectorAll('.tts-play-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const text = btn.dataset.text;
+        if (text) speech.speak(text);
       });
     });
 
-    // Example TTS buttons
-    this.container.querySelectorAll('.tts-play-btn').forEach(btn => {
+    // Exercise options
+    document.querySelectorAll('.exercise-opt-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        speech.speak(btn.dataset.text);
-      });
-    });
-
-    // Option selection for multiple choice
-    let selectedAnswer = '';
-    this.container.querySelectorAll('.exercise-opt-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.container.querySelectorAll('.exercise-opt-btn').forEach(b => b.classList.remove('selected'));
+        document.querySelectorAll('.exercise-opt-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
-        selectedAnswer = btn.dataset.val;
+        this.selectedOption = btn.dataset.value;
+        const checkBtn = document.getElementById('btn-check-exercise');
+        if (checkBtn) checkBtn.disabled = false;
       });
     });
 
-    // Submit Exercise
-    const submitBtn = document.getElementById('submit-exercise-btn');
-    const nextBtn = document.getElementById('next-exercise-btn');
-    const feedbackBox = document.getElementById('ex-feedback');
-    const inputEl = document.getElementById('ex-text-input');
-
-    submitBtn?.addEventListener('click', async () => {
-      const currentEx = this.exercises[this.currentExerciseIndex];
-      const answer = inputEl ? inputEl.value.trim() : selectedAnswer;
-
-      if (!answer) {
-        state.showToast('Please provide an answer first.', 'error');
-        return;
-      }
-
-      submitBtn.disabled = true;
-
-      try {
-        const res = await api.submitGrammarExercise(currentEx.id, answer);
-        feedbackBox.style.display = 'block';
-        feedbackBox.className = `exercise-feedback ${res.isCorrect ? 'correct' : 'incorrect'}`;
-
-        feedbackBox.innerHTML = `
-          <div class="feedback-head">${res.isCorrect ? '🎉 Correct!' : '❌ Not quite right'}</div>
-          <div class="feedback-body">${res.feedback || (res.isCorrect ? 'Great job.' : `Correct answer: <strong>${res.correctAnswer}</strong>`)}</div>
-          ${res.explanation ? `<div class="feedback-expl">${res.explanation}</div>` : ''}
-          ${res.explanationTr ? `<div class="feedback-expl-tr">Türkçe: ${res.explanationTr}</div>` : ''}
-        `;
-
-        submitBtn.style.display = 'none';
-        nextBtn.style.display = 'inline-flex';
-      } catch (err) {
-        state.showToast('Submission error: ' + err.message, 'error');
-        submitBtn.disabled = false;
-      }
+    // Exercise input change
+    const exInput = document.getElementById('exercise-input');
+    exInput?.addEventListener('input', (e) => {
+      this.selectedOption = e.target.value.trim();
+      const checkBtn = document.getElementById('btn-check-exercise');
+      if (checkBtn) checkBtn.disabled = !this.selectedOption;
     });
 
-    // Next Exercise
-    nextBtn?.addEventListener('click', () => {
-      this.currentExerciseIndex = (this.currentExerciseIndex + 1) % this.exercises.length;
-      this.renderLayout();
+    // Check exercise
+    document.getElementById('btn-check-exercise')?.addEventListener('click', () => {
+      if (this.selectedOption) {
+        this.checkExerciseAnswer();
+      }
     });
+  }
+
+  async checkExerciseAnswer() {
+    const ex = this.exercises[this.currentExerciseIndex];
+    if (!ex) return;
+
+    const checkBtn = document.getElementById('btn-check-exercise');
+    if (checkBtn) checkBtn.disabled = true;
+
+    try {
+      const res = await api.submitGrammarExercise(ex.id, this.selectedOption);
+      const fbBox = document.getElementById('exercise-feedback');
+      if (!fbBox) return;
+
+      fbBox.className = `exercise-feedback-box ${res.isCorrect ? 'correct' : 'incorrect'}`;
+      fbBox.innerHTML = `
+        <div class="feedback-title">${res.isCorrect ? '✅ Harika! Doğru Cevap (+15 XP)' : '❌ Yanlış Cevap'}</div>
+        <div class="feedback-desc">${res.feedback}</div>
+        ${res.explanationTr ? `<div class="feedback-tr">${res.explanationTr}</div>` : ''}
+        ${this.currentExerciseIndex + 1 < this.exercises.length ? `
+          <button class="btn btn-primary btn-sm" id="btn-next-exercise" style="margin-top: 10px;">
+            Sonraki Alıştırma →
+          </button>
+        ` : `
+          <p style="margin-top: 10px; color: #a5b4fc; font-weight: 600;">🎉 Bu konudaki tüm alıştırmaları tamamladınız!</p>
+        `}
+      `;
+      fbBox.style.display = 'block';
+
+      document.getElementById('btn-next-exercise')?.addEventListener('click', () => {
+        this.currentExerciseIndex++;
+        this.selectedOption = null;
+        const sb = document.querySelector('.topic-sandbox-card');
+        if (sb) {
+          sb.innerHTML = `
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">✏️ Alıştırma ve Pekiştirme</h3>
+                <div class="card-subtitle">Bu gramer yapısını pratik yaparak pekiştirin</div>
+              </div>
+              <span class="exercise-progress">Alıştırma ${this.currentExerciseIndex + 1} / ${this.exercises.length}</span>
+            </div>
+            ${this.renderExerciseSandbox()}
+          `;
+          this.bindEvents();
+        }
+      });
+    } catch (err) {
+      state.showToast('Cevap kontrol edilemedi: ' + err.message, 'error');
+      if (checkBtn) checkBtn.disabled = false;
+    }
   }
 }

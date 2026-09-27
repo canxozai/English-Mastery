@@ -14,32 +14,20 @@ const BASE_URL = '/api';
 
 class ApiClient {
   constructor() {
-    this.userId = localStorage.getItem('linguaforge_user_id') || 'local_learner';
-    this.username = localStorage.getItem('linguaforge_username') || 'learner';
     this.useLocal = isStaticHosting;
   }
 
-  setSession(userId, username) {
-    this.userId = userId;
-    this.username = username;
-    if (userId) {
-      localStorage.setItem('linguaforge_user_id', userId);
-    } else {
-      localStorage.removeItem('linguaforge_user_id');
-    }
-    if (username) {
-      localStorage.setItem('linguaforge_username', username);
-    } else {
-      localStorage.removeItem('linguaforge_username');
-    }
+  getCurrentUser() {
+    return localService.getCurrentUser();
   }
 
   getHeaders() {
+    const user = this.getCurrentUser();
     const headers = {
       'Content-Type': 'application/json',
     };
-    if (this.userId) {
-      headers['x-user-id'] = this.userId;
+    if (user) {
+      headers['x-user-id'] = user.id || user.username;
     }
     return headers;
   }
@@ -65,59 +53,66 @@ class ApiClient {
       }
       return await response.json();
     } catch (err) {
-      // Switch to local mode on failure
       this.useLocal = true;
       throw err;
     }
   }
 
   // Auth & Profile
-  async register(username, displayName) {
-    localStorage.setItem('linguaforge_display_name', displayName);
-    if (this.useLocal) return { userId: 'local_' + Date.now(), username, displayName };
+  async register(username, password, displayName) {
+    if (this.useLocal) {
+      return await localService.register(username, password, displayName);
+    }
     try {
       const data = await this.request('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ username, displayName })
+        body: JSON.stringify({ username, password, displayName })
       });
-      this.setSession(data.userId, data.username);
+      await localService.register(username, password, displayName);
       return data;
     } catch (e) {
-      return { userId: 'local_' + Date.now(), username, displayName };
+      return await localService.register(username, password, displayName);
     }
   }
 
-  async login(username) {
-    if (this.useLocal) return { userId: 'local_user', username, displayName: 'English Learner' };
+  async login(username, password) {
+    if (this.useLocal) {
+      return await localService.login(username, password);
+    }
     try {
       const data = await this.request('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ username })
+        body: JSON.stringify({ username, password })
       });
-      this.setSession(data.userId, data.username);
+      await localService.login(username, password);
       return data;
     } catch (e) {
-      return { userId: 'local_user', username, displayName: 'English Learner' };
+      return await localService.login(username, password);
     }
+  }
+
+  async loginOrRegisterGuest() {
+    return await localService.loginOrRegisterGuest();
+  }
+
+  logout() {
+    localService.logout();
   }
 
   async getProfile() {
-    if (this.useLocal) return { user: { displayName: localStorage.getItem('linguaforge_display_name') || 'English Learner' } };
-    try {
-      return await this.request('/user/profile');
-    } catch (e) {
-      return { user: { displayName: localStorage.getItem('linguaforge_display_name') || 'English Learner' } };
-    }
+    const user = this.getCurrentUser();
+    if (!user) throw new Error('AUTH_REQUIRED');
+    return { user };
   }
 
   async getDashboard() {
-    if (this.useLocal) return localService.getDashboard();
-    try {
-      return await this.request('/dashboard');
-    } catch (e) {
-      return localService.getDashboard();
-    }
+    return await localService.getDashboard();
   }
+
+  async skipAssessmentToA1() {
+    return await localService.skipAssessmentToA1();
+  }
+
 
   // Diagnostic Assessment
   async startAssessment() {

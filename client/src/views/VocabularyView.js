@@ -1,6 +1,6 @@
 /**
  * Spaced Repetition (SRS) Vocabulary Studio
- * SuperMemo / Anki spaced recall algorithm with IPA phonetics & collocations
+ * SuperMemo / Anki spaced recall algorithm with Turkish meanings & IPA phonetics
  */
 import { api } from '../api.js';
 import { state } from '../state.js';
@@ -23,7 +23,7 @@ export class VocabularyView {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Loading your spaced repetition vocabulary queue...</p>
+        <p>Aralıklı tekrar kelime kuyruğunuz yükleniyor...</p>
       </div>
     `;
 
@@ -41,7 +41,7 @@ export class VocabularyView {
     } catch (err) {
       this.container.innerHTML = `
         <div class="card error-card">
-          <h3>Failed to load vocabulary</h3>
+          <h3>Kelimeler yüklenemedi</h3>
           <p>${err.message}</p>
         </div>
       `;
@@ -54,16 +54,16 @@ export class VocabularyView {
         <!-- Mode Switcher & Stats Header -->
         <div class="vocab-header card">
           <div class="vocab-header-left">
-            <h1 class="vocab-title">Spaced Repetition Studio</h1>
-            <p class="vocab-subtitle">Optimized memory consolidation using the SM-2 adaptive spaced recall algorithm</p>
+            <h1 class="vocab-title">Akıllı Kelime Kartları (SRS)</h1>
+            <p class="vocab-subtitle">Unutma eğrisini kıran SM-2 hafıza algoritması ile kalıcı kelime öğrenimi</p>
           </div>
           <div class="vocab-mode-toggles">
             <button class="btn ${this.mode === 'review' ? 'btn-primary' : 'btn-secondary'}" id="toggle-review-mode">
-              <span>🗂️ Due Reviews</span>
+              <span>🗂️ Tekrar Bekleyenler</span>
               <span class="btn-badge">${this.reviewItems.length}</span>
             </button>
             <button class="btn ${this.mode === 'dictionary' ? 'btn-primary' : 'btn-secondary'}" id="toggle-dict-mode">
-              <span>📖 Dictionary & Bank</span>
+              <span>📖 Tüm Kelime Sözlüğü</span>
             </button>
           </div>
         </div>
@@ -82,9 +82,9 @@ export class VocabularyView {
       return `
         <div class="card empty-review-card">
           <div class="empty-icon">🎉</div>
-          <h2>Review Queue Cleared!</h2>
-          <p>You have zero words due right now. The spaced repetition algorithm will automatically schedule your next reviews at the ideal time for long-term retention.</p>
-          <button class="btn btn-primary" id="switch-to-dict-btn">Explore Full Dictionary →</button>
+          <h2>Tebrikler! Tekrar Kuyruğu Temizlendi</h2>
+          <p>Şu anda tekrar etmeniz gereken kelime bulunmuyor. Algoritma kelimeleri hafızanıza en uygun zamanda tekrar getirecektir.</p>
+          <button class="btn btn-primary" id="switch-to-dict-btn">Tüm Kelime Sözlüğünü İncele →</button>
         </div>
       `;
     }
@@ -94,9 +94,9 @@ export class VocabularyView {
       return `
         <div class="card empty-review-card">
           <div class="empty-icon">✅</div>
-          <h2>Session Completed!</h2>
-          <p>Great focus! You've reviewed all cards scheduled for this session.</p>
-          <button class="btn btn-primary" id="refresh-queue-btn">Check for More Reviews</button>
+          <h2>Oturum Tamamlandı!</h2>
+          <p>Harika odaklanma! Bu oturumdaki tüm kelime kartlarını gözden geçirdiniz.</p>
+          <button class="btn btn-primary" id="refresh-queue-btn">Kelimeleri Yenile</button>
         </div>
       `;
     }
@@ -108,7 +108,7 @@ export class VocabularyView {
       <div class="flashcard-container">
         <!-- Progress Counter -->
         <div class="flashcard-counter">
-          <span>Card ${this.currentIndex + 1} of ${this.reviewItems.length}</span>
+          <span>Kelime ${this.currentIndex + 1} / ${this.reviewItems.length}</span>
           <span class="cefr-tag ${item.cefr_level || 'A1'}">${item.cefr_level || 'A1'}</span>
         </div>
 
@@ -117,34 +117,34 @@ export class VocabularyView {
           <!-- FRONT FACE -->
           <div class="flashcard-face flashcard-front">
             <div class="card-meta">
-              <span class="pos-badge">${item.part_of_speech || 'word'}</span>
-              <button class="tts-play-btn" id="card-tts-btn" title="Listen to pronunciation">🔊</button>
+              <span class="pos-badge">${item.part_of_speech || 'kelime'}</span>
+              <button class="tts-play-btn" id="card-tts-btn" title="Telaffuzu dinle">🔊 Dinle</button>
             </div>
 
             <div class="target-word">${item.word}</div>
             <div class="phonetic-ipa">${item.phonetic || ''}</div>
             
-            <div class="card-prompt-hint">Tap card or press Space to reveal meaning & collocations</div>
+            <div class="card-prompt-hint">Karta tıklayarak veya Boşluk tuşuna basarak Türkçe anlamını görün 🔄</div>
           </div>
 
           <!-- BACK FACE -->
           <div class="flashcard-face flashcard-back">
             <div class="card-meta">
-              <span class="pos-badge">${item.part_of_speech || 'word'}</span>
-              <button class="tts-play-btn" id="card-back-tts-btn" title="Listen again">🔊</button>
+              <span class="pos-badge">${item.part_of_speech || 'kelime'}</span>
+              <button class="tts-play-btn" id="card-back-tts-btn" title="Tekrar dinle">🔊 Dinle</button>
             </div>
 
             <div class="target-word">${item.word}</div>
             <div class="phonetic-ipa">${item.phonetic || ''}</div>
 
             <div class="def-box">
-              <div class="def-en"><strong>Definition:</strong> ${item.definition_en || ''}</div>
-              <div class="def-tr"><strong>Türkçe:</strong> ${item.definition_tr || ''}</div>
+              <div class="def-tr"><strong>🇹🇷 Türkçe Anlamı:</strong> ${item.definition_tr || item.definition || ''}</div>
+              ${item.definition_en ? `<div class="def-en"><strong>İngilizce Açıklama:</strong> ${item.definition_en}</div>` : ''}
             </div>
 
             ${collocations.length > 0 ? `
               <div class="collocations-box">
-                <span class="box-label">Key Collocations:</span>
+                <span class="box-label">Sık Kullanılan Birliktelikler (Collocations):</span>
                 <div class="collocation-tags">
                   ${collocations.slice(0, 5).map(c => `<span class="colloc-tag">${c}</span>`).join('')}
                 </div>
@@ -153,32 +153,37 @@ export class VocabularyView {
 
             ${examples.length > 0 ? `
               <div class="example-box">
-                <span class="box-label">Context Sentence:</span>
+                <span class="box-label">Örnek Cümle:</span>
                 <div class="example-sentence">"${examples[0]}"</div>
               </div>
             ` : ''}
           </div>
         </div>
 
+        <!-- Card flip helper button -->
+        <button class="btn btn-secondary btn-sm" id="btn-manual-flip" style="margin: 0 auto; display: block;">
+          🔄 ${this.isCardFlipped ? 'Kartın Önünü Gör' : 'Kartı Çevir (Anlamı Gör)'}
+        </button>
+
         <!-- Rating Buttons (Only visible when card is flipped) -->
         <div class="rating-bar" id="rating-bar" style="visibility: ${this.isCardFlipped ? 'visible' : 'hidden'};">
-          <div class="rating-prompt">How well did you remember this word?</div>
+          <div class="rating-prompt">Bu kelimeyi ne kadar iyi hatırladınız?</div>
           <div class="rating-buttons-group">
-            <button class="rating-btn again" data-rating="1">
-              <span class="rating-title">Again</span>
-              <span class="rating-interval">&lt; 1 day</span>
+            <button class="rating-btn again" data-rating="0">
+              <span class="rating-title">🔄 Tekrar Et</span>
+              <span class="rating-interval">&lt; 1 gün</span>
             </button>
-            <button class="rating-btn hard" data-rating="2">
-              <span class="rating-title">Hard</span>
-              <span class="rating-interval">1-2 days</span>
+            <button class="rating-btn hard" data-rating="1">
+              <span class="rating-title">⚠️ Zorlandım</span>
+              <span class="rating-interval">1-2 gün</span>
             </button>
-            <button class="rating-btn good" data-rating="3">
-              <span class="rating-title">Good</span>
-              <span class="rating-interval">3-4 days</span>
+            <button class="rating-btn good" data-rating="2">
+              <span class="rating-title">👍 İyi Hatırladım</span>
+              <span class="rating-interval">3-4 gün</span>
             </button>
-            <button class="rating-btn easy" data-rating="4">
-              <span class="rating-title">Easy</span>
-              <span class="rating-interval">7+ days</span>
+            <button class="rating-btn easy" data-rating="3">
+              <span class="rating-title">🌟 Çok Kolaydı</span>
+              <span class="rating-interval">7+ gün</span>
             </button>
           </div>
         </div>
@@ -200,11 +205,11 @@ export class VocabularyView {
     return `
       <div class="dict-container card">
         <div class="dict-toolbar">
-          <input type="text" class="dict-search-input" id="dict-search-input" placeholder="Search words, English definitions, or Turkish meanings..." value="${this.searchQuery}">
+          <input type="text" class="dict-search-input" id="dict-search-input" placeholder="İngilizce kelime veya Türkçe anlam ara..." value="${this.searchQuery}">
           
           <div class="level-filter-tabs">
             ${levels.map(l => `
-              <button class="level-tab ${this.levelFilter === l ? 'active' : ''}" data-level="${l}">${l}</button>
+              <button class="level-tab ${this.levelFilter === l ? 'active' : ''}" data-level="${l}">${l === 'all' ? 'Tümü' : l}</button>
             `).join('')}
           </div>
         </div>
@@ -213,12 +218,12 @@ export class VocabularyView {
           <table class="dict-table">
             <thead>
               <tr>
-                <th>Word</th>
-                <th>CEFR</th>
-                <th>Phonetics</th>
-                <th>English Definition</th>
-                <th>Türkçe Anlam</th>
-                <th>Audio</th>
+                <th>Kelime</th>
+                <th>Seviye</th>
+                <th>Okunuş (IPA)</th>
+                <th>Türkçe Anlamı</th>
+                <th>İngilizce Tanım</th>
+                <th>Ses</th>
               </tr>
             </thead>
             <tbody>
@@ -228,10 +233,10 @@ export class VocabularyView {
                     <strong>${item.word}</strong>
                     <span class="dict-pos">${item.part_of_speech || ''}</span>
                   </td>
-                  <td><span class="cefr-tag ${item.cefr_level}">${item.cefr_level}</span></td>
+                  <td><span class="cefr-tag ${item.cefr_level || 'A1'}">${item.cefr_level || 'A1'}</span></td>
                   <td class="dict-phonetic">${item.phonetic || '-'}</td>
+                  <td class="dict-def-tr"><strong>${item.definition_tr || '-'}</strong></td>
                   <td class="dict-def-en">${item.definition_en || '-'}</td>
-                  <td class="dict-def-tr">${item.definition_tr || '-'}</td>
                   <td>
                     <button class="tts-play-btn dict-tts" data-text="${item.word}">🔊</button>
                   </td>
@@ -265,76 +270,89 @@ export class VocabularyView {
       this.render(this.container);
     });
 
-    // Card Flip
-    const cardEl = document.getElementById('flashcard-element');
-    cardEl?.addEventListener('click', (e) => {
-      if (e.target.closest('.tts-play-btn')) return;
-      this.isCardFlipped = !this.isCardFlipped;
-      cardEl.classList.toggle('flipped', this.isCardFlipped);
-      const ratingBar = document.getElementById('rating-bar');
-      if (ratingBar) ratingBar.style.visibility = this.isCardFlipped ? 'visible' : 'hidden';
-    });
+    // Flip card
+    const flashcard = document.getElementById('flashcard-element');
+    flashcard?.addEventListener('click', () => this.toggleFlip());
 
-    // TTS Buttons
+    document.getElementById('btn-manual-flip')?.addEventListener('click', () => this.toggleFlip());
+
+    // TTS on card
     document.getElementById('card-tts-btn')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      const currentItem = this.reviewItems[this.currentIndex];
-      if (currentItem) speech.speak(currentItem.word);
+      const item = this.reviewItems[this.currentIndex];
+      if (item) speech.speak(item.word);
     });
 
     document.getElementById('card-back-tts-btn')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      const currentItem = this.reviewItems[this.currentIndex];
-      if (currentItem) speech.speak(currentItem.word);
+      const item = this.reviewItems[this.currentIndex];
+      if (item) speech.speak(item.word);
     });
 
-    // Rating Submission
-    this.container.querySelectorAll('.rating-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    // Rating buttons
+    document.querySelectorAll('.rating-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const rating = parseInt(btn.dataset.rating, 10);
-        const item = this.reviewItems[this.currentIndex];
-        if (!item) return;
-
-        try {
-          await api.submitReview(item.id, rating);
-          state.showToast('Recall logged! Next review scheduled.', 'success', 2000);
-          this.currentIndex++;
-          this.isCardFlipped = false;
-          this.renderContent();
-        } catch (err) {
-          state.showToast('Error recording review: ' + err.message, 'error');
-        }
+        this.submitRating(rating);
       });
     });
 
-    // Dictionary Search & Filters
+    // Dictionary search & filter
     const searchInput = document.getElementById('dict-search-input');
     searchInput?.addEventListener('input', (e) => {
       this.searchQuery = e.target.value;
-      const dictBody = document.querySelector('.dict-table tbody');
-      if (dictBody) {
-        this.renderContent();
-        // Restore focus
-        const newInput = document.getElementById('dict-search-input');
-        if (newInput) {
-          newInput.focus();
-          newInput.setSelectionRange(this.searchQuery.length, this.searchQuery.length);
-        }
-      }
+      const body = document.getElementById('vocab-body');
+      if (body) body.innerHTML = this.renderDictionaryArea();
+      this.bindEvents();
     });
 
-    this.container.querySelectorAll('.level-tab').forEach(tab => {
+    document.querySelectorAll('.level-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         this.levelFilter = tab.dataset.level;
-        this.renderContent();
+        const body = document.getElementById('vocab-body');
+        if (body) body.innerHTML = this.renderDictionaryArea();
+        this.bindEvents();
       });
     });
 
-    this.container.querySelectorAll('.dict-tts').forEach(btn => {
+    document.querySelectorAll('.dict-tts').forEach(btn => {
       btn.addEventListener('click', () => {
-        speech.speak(btn.dataset.text);
+        const text = btn.dataset.text;
+        if (text) speech.speak(text);
       });
     });
+  }
+
+  toggleFlip() {
+    this.isCardFlipped = !this.isCardFlipped;
+    const flashcard = document.getElementById('flashcard-element');
+    const ratingBar = document.getElementById('rating-bar');
+    const manualBtn = document.getElementById('btn-manual-flip');
+
+    if (flashcard) flashcard.classList.toggle('flipped', this.isCardFlipped);
+    if (ratingBar) ratingBar.style.visibility = this.isCardFlipped ? 'visible' : 'hidden';
+    if (manualBtn) manualBtn.textContent = this.isCardFlipped ? '🔄 Kartın Önünü Gör' : '🔄 Kartı Çevir (Anlamı Gör)';
+
+    if (this.isCardFlipped) {
+      const item = this.reviewItems[this.currentIndex];
+      if (item) speech.speak(item.word);
+    }
+  }
+
+  async submitRating(rating) {
+    const item = this.reviewItems[this.currentIndex];
+    if (!item) return;
+
+    try {
+      await api.submitReview(item.id, rating);
+      this.isCardFlipped = false;
+      this.currentIndex++;
+      const body = document.getElementById('vocab-body');
+      if (body) body.innerHTML = this.renderReviewArea();
+      this.bindEvents();
+    } catch (err) {
+      state.showToast('Değerlendirme kaydedilemedi: ' + err.message, 'error');
+    }
   }
 }

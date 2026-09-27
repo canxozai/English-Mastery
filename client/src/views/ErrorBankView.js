@@ -1,6 +1,6 @@
 /**
  * Error Bank (Hata Defteri) View
- * Systematic error eradication, root-cause diagnosis, and personalized error drills
+ * Systematic error eradication, root-cause diagnosis, and personalized error drills with Turkish guidance
  */
 import { api } from '../api.js';
 import { state } from '../state.js';
@@ -11,6 +11,14 @@ export class ErrorBankView {
     this.errors = [];
     this.filterSkill = 'all';
     this.showResolved = false;
+    this.skillNamesTr = {
+      all: 'Tümü',
+      grammar: 'Dilbilgisi',
+      vocabulary: 'Kelime',
+      writing: 'Yazma',
+      speaking: 'Konuşma',
+      sentence_formation: 'Cümle Kurma'
+    };
   }
 
   async render(viewport) {
@@ -18,7 +26,7 @@ export class ErrorBankView {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Loading personal error registry...</p>
+        <p>Kişisel hata defteriniz yükleniyor...</p>
       </div>
     `;
 
@@ -29,7 +37,7 @@ export class ErrorBankView {
     } catch (err) {
       this.container.innerHTML = `
         <div class="card error-card">
-          <h3>Failed to load error bank</h3>
+          <h3>Hata defteri yüklenemedi</h3>
           <p>${err.message}</p>
         </div>
       `;
@@ -49,25 +57,25 @@ export class ErrorBankView {
         <!-- Header -->
         <div class="card errorbank-header">
           <div class="errorbank-header-left">
-            <h1 class="errorbank-title">Personal Error Bank (Hata Defteri)</h1>
+            <h1 class="errorbank-title">Kişisel Hata Defteri</h1>
             <p class="errorbank-subtitle">
-              Every mistake is diagnostic data. LinguaForge catalogs your habitual errors, exposes the underlying linguistic interference, and trains you until the pattern is eradicated.
+              Her hata bir öğrenme verisidir. Sistem alıştırmalarda yaptığınız hataları kaydeder, Türkçeden kaynaklanan dilsel yanılgıları gösterir ve kalıcı olarak düzeltmenize rehberlik eder.
             </p>
           </div>
           <div class="errorbank-header-right">
             <button class="btn ${this.showResolved ? 'btn-primary' : 'btn-secondary'}" id="toggle-resolved-btn">
-              ${this.showResolved ? 'Showing Resolved' : 'Showing Active'} (${this.errors.length})
+              ${this.showResolved ? 'Çözülen Hatalar' : 'Aktif Hatalar'} (${this.errors.length})
             </button>
           </div>
         </div>
 
         <!-- Filter Bar -->
         <div class="errorbank-filters card">
-          <span class="filter-label">Filter by Domain:</span>
+          <span class="filter-label">Alana Göre Filtrele:</span>
           <div class="skill-filter-tabs">
             ${skills.map(s => `
               <button class="skill-tab ${this.filterSkill === s ? 'active' : ''}" data-skill="${s}">
-                ${s.replace('_', ' ').toUpperCase()}
+                ${this.skillNamesTr[s] || s}
               </button>
             `).join('')}
           </div>
@@ -78,42 +86,42 @@ export class ErrorBankView {
           ${filtered.length > 0 ? filtered.map(err => `
             <div class="card error-item-card ${err.resolved ? 'is-resolved' : ''}">
               <div class="error-item-top">
-                <span class="error-skill-badge">${(err.skill || '').toUpperCase()}</span>
-                <span class="error-freq-badge">Occurred: <strong>${err.occurrence_count || 1}x</strong></span>
+                <span class="error-skill-badge">${this.skillNamesTr[err.skill] || (err.skill || '').toUpperCase()}</span>
+                <span class="error-freq-badge">Tekrar Sayısı: <strong>${err.occurrence_count || 1}x</strong></span>
               </div>
 
               <div class="error-contrast-box">
                 <div class="error-produced">
-                  <span class="contrast-label">Your Production:</span>
-                  <div class="produced-text">❌ "${err.error_text || 'Error'}"</div>
+                  <span class="contrast-label">Sizin İfadeniz:</span>
+                  <div class="produced-text">❌ "${err.error_text || 'Hata'}"</div>
                 </div>
                 <div class="error-target">
-                  <span class="contrast-label">Natural Target:</span>
-                  <div class="target-text">✅ "${err.correction || 'Target'}"</div>
+                  <span class="contrast-label">Doğru & Doğal Biçimi:</span>
+                  <div class="target-text">✅ "${err.correction || 'Hedef'}"</div>
                 </div>
               </div>
 
               ${err.explanation ? `
                 <div class="error-explanation">
-                  <strong>Why this happens:</strong> ${err.explanation}
+                  <strong>💡 Neden Yanlış? (Kural & Açıklama):</strong> ${err.explanation}
                 </div>
               ` : ''}
 
               <div class="error-item-actions">
                 ${!err.resolved ? `
                   <button class="btn btn-success btn-sm resolve-err-btn" data-id="${err.id}">
-                    ✓ Mark as Mastered
+                    ✓ Öğrendim (Çözüldü Olarak İşaretle)
                   </button>
                 ` : `
-                  <span class="resolved-label">🎉 Mastered & Cleared</span>
+                  <span class="resolved-label">🎉 Öğrenildi & Çözüldü</span>
                 `}
               </div>
             </div>
           `).join('') : `
             <div class="card empty-errors-card">
               <div class="empty-icon">🛡️</div>
-              <h3>No Unresolved Errors</h3>
-              <p>Your error bank is clean in this category. Continue practicing grammar exercises and writing prompts; any persistent mistakes will automatically be caught and logged here.</p>
+              <h3>Kayıtlı Aktif Hata Bulunmuyor</h3>
+              <p>Hata defteriniz şu an temiz! Gramer, okuma ve yazma alıştırmalarını çözmeye devam edin; sistem yaptığınız yanlışları otomatik olarak buraya kaydedecektir.</p>
             </div>
           `}
         </div>
@@ -141,10 +149,10 @@ export class ErrorBankView {
         const id = btn.dataset.id;
         try {
           await api.resolveError(id);
-          state.showToast('Error pattern marked as resolved!', 'success');
+          state.showToast('Hata başarıyla çözüldü olarak işaretlendi! (+10 XP)', 'success');
           await this.render(this.container);
         } catch (e) {
-          state.showToast('Failed to resolve error: ' + e.message, 'error');
+          state.showToast('Hata güncellenemedi: ' + e.message, 'error');
         }
       });
     });

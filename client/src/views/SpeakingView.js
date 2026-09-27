@@ -21,7 +21,7 @@ export class SpeakingView {
     this.container.innerHTML = `
       <div class="dashboard-loading">
         <div class="spinner"></div>
-        <p>Loading speaking scenarios...</p>
+        <p>Konuşma senaryoları yükleniyor...</p>
       </div>
     `;
 
@@ -36,7 +36,7 @@ export class SpeakingView {
     } catch (err) {
       this.container.innerHTML = `
         <div class="card error-card">
-          <h3>Failed to load speaking scenarios</h3>
+          <h3>Konuşma senaryoları yüklenemedi</h3>
           <p>${err.message}</p>
         </div>
       `;
@@ -51,8 +51,8 @@ export class SpeakingView {
       this.messages = [
         {
           sender: 'ai',
-          name: this.selectedScenario.ai_role || 'AI Partner',
-          text: this.selectedScenario.starter_message || 'Hello! Ready to practice?'
+          name: this.selectedScenario.ai_role || 'Diyalog Partneri',
+          text: this.selectedScenario.starter_message || 'Hello! How can I help you today?'
         }
       ];
       this.renderContent();
@@ -61,13 +61,12 @@ export class SpeakingView {
         speech.speak(this.selectedScenario.starter_message);
       }
     } catch (err) {
-      state.showToast('Failed to load scenario: ' + err.message, 'error');
+      state.showToast('Senaryo yüklenemedi: ' + err.message, 'error');
     }
   }
 
   renderContent() {
     const s = this.selectedScenario;
-    const vocab = s && s.key_vocabulary ? (typeof s.key_vocabulary === 'string' ? JSON.parse(s.key_vocabulary) : s.key_vocabulary) : [];
     const phrases = s && s.key_phrases ? (typeof s.key_phrases === 'string' ? JSON.parse(s.key_phrases) : s.key_phrases) : [];
     const objectives = s && s.objectives ? (typeof s.objectives === 'string' ? JSON.parse(s.objectives) : s.objectives) : [];
 
@@ -76,15 +75,15 @@ export class SpeakingView {
         <!-- Sidebar: Scenario List -->
         <aside class="speaking-sidebar card">
           <div class="speaking-sidebar-header">
-            <h3>Speaking Scenarios</h3>
-            <span class="catalog-count">${this.scenarios.length} Scenarios</span>
+            <h3>Konuşma Senaryoları</h3>
+            <span class="catalog-count">${this.scenarios.length} Senaryo</span>
           </div>
 
           <div class="scenarios-list">
             ${this.scenarios.map(sc => `
               <div class="scenario-item ${s && s.id === sc.id ? 'active' : ''}" data-id="${sc.id}">
                 <div class="scenario-top">
-                  <span class="cefr-tag ${sc.cefr_level}">${sc.cefr_level}</span>
+                  <span class="cefr-tag ${sc.cefr_level || 'A1'}">${sc.cefr_level || 'A1'}</span>
                   <span class="scenario-cat">${(sc.category || '').toUpperCase()}</span>
                 </div>
                 <div class="scenario-title">${sc.title}</div>
@@ -98,66 +97,69 @@ export class SpeakingView {
           ${s ? `
             <div class="card speaking-header-card">
               <div class="dialogue-meta-strip">
-                <span class="cefr-tag ${s.cefr_level}">${s.cefr_level}</span>
-                <span class="topic-category-badge">${s.category}</span>
-                <span class="role-badge">You: <strong>${s.user_role}</strong> • AI: <strong>${s.ai_role}</strong></span>
+                <span class="cefr-tag ${s.cefr_level || 'A1'}">${s.cefr_level || 'A1'}</span>
+                <span class="dialogue-roles">Rolünüz: <strong>${s.user_role || 'Müşteri / Gezgin'}</strong> • Partner: <strong>${s.ai_role || 'Görevli'}</strong></span>
               </div>
               <h1 class="dialogue-title">${s.title}</h1>
-              <p class="dialogue-situation">📌 <em>Situation: ${s.situation}</em></p>
+              <p class="dialogue-description">${s.description || ''}</p>
 
-              <!-- Objectives Checklist -->
+              <!-- Objectives checklist -->
               ${objectives.length > 0 ? `
                 <div class="objectives-strip">
-                  <span class="obj-label">Objectives:</span>
-                  <div class="obj-pills-list">
+                  <span class="objectives-label">Konuşma Hedefleri:</span>
+                  <div class="objectives-tags">
                     ${objectives.map((obj, i) => `
-                      <span class="obj-pill ${this.completedObjectives.has(obj) ? 'completed' : ''}" data-obj="${obj}">
-                        ${this.completedObjectives.has(obj) ? '✅' : '⭕'} ${obj}
+                      <span class="obj-tag ${this.completedObjectives.has(i) ? 'completed' : ''}">
+                        ${this.completedObjectives.has(i) ? '✓ ' : ''}${obj}
                       </span>
                     `).join('')}
                   </div>
                 </div>
               ` : ''}
+
+              <!-- Useful Phrases -->
+              ${phrases.length > 0 ? `
+                <div class="phrases-strip">
+                  <span class="phrases-label">Kullanabileceğiniz Örnek Kalıplar (Tıklayarak Dinleyin):</span>
+                  <div class="phrases-tags">
+                    ${phrases.map(ph => `<span class="phrase-tag" data-phrase="${ph}">🔊 ${ph}</span>`).join('')}
+                  </div>
+                </div>
+              ` : ''}
             </div>
 
-            <!-- Dialogue Chat Window -->
-            <div class="card dialogue-window card" id="dialogue-chat-window">
-              <div class="chat-messages-scroll" id="chat-messages-container">
-                ${this.messages.map((m, i) => `
-                  <div class="chat-bubble ${m.sender === 'ai' ? 'ai-bubble' : 'user-bubble'}">
-                    <div class="bubble-sender">${m.name}</div>
-                    <div class="bubble-text">${m.text}</div>
-                    ${m.sender === 'ai' ? `<button class="tts-bubble-btn" data-text="${m.text}">🔊</button>` : ''}
+            <!-- Dialogue Chat History Box -->
+            <div class="card dialogue-chat-card">
+              <div class="dialogue-messages-wrap" id="dialogue-messages">
+                ${this.messages.map(m => `
+                  <div class="chat-bubble-row ${m.sender === 'user' ? 'user-row' : 'ai-row'}">
+                    <div class="chat-bubble">
+                      <div class="bubble-header">
+                        <span class="bubble-name">${m.name}</span>
+                        <button class="tts-play-btn bubble-tts" data-text="${m.text}">🔊</button>
+                      </div>
+                      <div class="bubble-body">${m.text}</div>
+                    </div>
                   </div>
                 `).join('')}
               </div>
 
-              <!-- Suggested Phrases Helpers -->
-              ${phrases.length > 0 ? `
-                <div class="phrases-helper-strip">
-                  <span class="phrases-label">💡 Suggested Phrases:</span>
-                  <div class="phrases-chips">
-                    ${phrases.map(p => `<button class="phrase-chip-btn" data-phrase="${p}">${p}</button>`).join('')}
-                  </div>
-                </div>
-              ` : ''}
-
-              <!-- Input Strip with Mic / Text -->
-              <div class="dialogue-input-strip">
-                <button class="mic-toggle-btn ${this.isRecording ? 'recording' : ''}" id="mic-toggle-btn" title="Speak with microphone">
-                  ${this.isRecording ? '🔴 Listening...' : '🎙️ Mic'}
+              <!-- Input Bar: Voice / Text -->
+              <div class="dialogue-input-bar">
+                <button class="btn ${this.isRecording ? 'btn-danger pulse' : 'btn-primary'} btn-record" id="btn-record-voice">
+                  <span>${this.isRecording ? '⏹️ Dinleniyor...' : '🎙️ Konuşmaya Başla'}</span>
                 </button>
 
-                <input type="text" class="dialogue-input" id="dialogue-text-input" placeholder="Type or speak your conversational turn..." autocomplete="off">
-
-                <button class="btn btn-primary" id="send-dialogue-btn">
-                  Send Turn ➔
+                <input type="text" class="form-input dialogue-input" id="dialogue-text-input" placeholder="Veya İngilizce cevabınızı buraya yazın..." />
+                
+                <button class="btn btn-secondary" id="btn-send-message">
+                  Gönder →
                 </button>
               </div>
             </div>
           ` : `
             <div class="card empty-state">
-              <p>Select a speaking scenario from the list to start conversing.</p>
+              <p>Diyalog alıştırmasına başlamak için sol menüden bir senaryo seçin.</p>
             </div>
           `}
         </div>
@@ -165,157 +167,122 @@ export class SpeakingView {
     `;
 
     this.bindEvents();
-    this.scrollChatToBottom();
-  }
-
-  scrollChatToBottom() {
-    const el = document.getElementById('chat-messages-container');
-    if (el) el.scrollTop = el.scrollHeight;
   }
 
   bindEvents() {
-    this.container.querySelectorAll('.scenario-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const id = parseInt(item.dataset.id, 10);
-        if (id) this.loadScenario(id);
+    this.container.querySelectorAll('.scenario-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = parseInt(el.dataset.id, 10);
+        this.loadScenario(id);
       });
     });
 
-    // Phrase chips click
-    this.container.querySelectorAll('.phrase-chip-btn').forEach(btn => {
+    document.querySelectorAll('.phrase-tag').forEach(tag => {
+      tag.addEventListener('click', () => {
+        const phrase = tag.dataset.phrase;
+        if (phrase) speech.speak(phrase);
+      });
+    });
+
+    document.querySelectorAll('.bubble-tts').forEach(btn => {
       btn.addEventListener('click', () => {
-        const input = document.getElementById('dialogue-text-input');
-        if (input) {
-          input.value = btn.dataset.phrase;
-          input.focus();
-        }
+        const text = btn.dataset.text;
+        if (text) speech.speak(text);
       });
     });
 
-    // TTS in bubbles
-    this.container.querySelectorAll('.tts-bubble-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        speech.speak(btn.dataset.text);
-      });
+    // Voice input
+    const recordBtn = document.getElementById('btn-record-voice');
+    recordBtn?.addEventListener('click', () => {
+      this.toggleSpeechRecognition();
     });
 
-    // Microphone toggle
-    const micBtn = document.getElementById('mic-toggle-btn');
-    const textInput = document.getElementById('dialogue-text-input');
+    // Send text
+    document.getElementById('btn-send-message')?.addEventListener('click', () => {
+      this.sendUserMessage();
+    });
 
-    micBtn?.addEventListener('click', () => {
-      if (this.isRecording) {
-        speech.stopListening();
-        this.isRecording = false;
-        micBtn.classList.remove('recording');
-        micBtn.textContent = '🎙️ Mic';
-      } else {
-        if (!speech.isSttSupported()) {
-          state.showToast('Speech recognition is not supported in this browser. You can type your turns directly!', 'error');
-          return;
-        }
-
-        this.isRecording = true;
-        micBtn.classList.add('recording');
-        micBtn.textContent = '🔴 Listening...';
-
-        speech.startListening({
-          onResult: (res) => {
-            if (textInput) textInput.value = res.final || res.interim;
-          },
-          onError: () => {
-            this.isRecording = false;
-            micBtn.classList.remove('recording');
-            micBtn.textContent = '🎙️ Mic';
-          },
-          onEnd: (final) => {
-            this.isRecording = false;
-            micBtn.classList.remove('recording');
-            micBtn.textContent = '🎙️ Mic';
-            if (final && textInput) textInput.value = final;
-          }
-        });
+    document.getElementById('dialogue-text-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.sendUserMessage();
       }
-    });
-
-    // Send Turn
-    const sendBtn = document.getElementById('send-dialogue-btn');
-    sendBtn?.addEventListener('click', () => this.handleUserTurn());
-    textInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.handleUserTurn();
     });
   }
 
-  handleUserTurn() {
+  toggleSpeechRecognition() {
+    if (!speech.hasRecognition) {
+      state.showToast('Tarayıcınız ses tanımayı desteklemiyor. Lütfen yazarak cevap verin.', 'error');
+      return;
+    }
+
+    if (this.isRecording) {
+      speech.stopListening();
+      this.isRecording = false;
+      this.renderContent();
+    } else {
+      this.isRecording = true;
+      this.renderContent();
+      speech.listen((transcript) => {
+        this.isRecording = false;
+        const input = document.getElementById('dialogue-text-input');
+        if (input) input.value = transcript;
+        this.sendUserMessage(transcript);
+      }, () => {
+        this.isRecording = false;
+        this.renderContent();
+      });
+    }
+  }
+
+  sendUserMessage(explicitText) {
     const input = document.getElementById('dialogue-text-input');
-    const userText = input ? input.value.trim() : '';
-    if (!userText) return;
+    const text = explicitText || (input ? input.value.trim() : '');
+    if (!text) return;
 
-    input.value = '';
+    if (input) input.value = '';
 
-    // Add user message
+    // Add user bubble
     this.messages.push({
       sender: 'user',
-      name: this.selectedScenario.user_role || 'You',
-      text: userText
+      name: 'Siz',
+      text
     });
-
-    // Update objectives if matching keywords found
-    const s = this.selectedScenario;
-    const objectives = s && s.objectives ? (typeof s.objectives === 'string' ? JSON.parse(s.objectives) : s.objectives) : [];
-    for (const obj of objectives) {
-      const words = obj.toLowerCase().split(' ');
-      if (words.some(w => userText.toLowerCase().includes(w) && w.length > 3)) {
-        this.completedObjectives.add(obj);
-      }
-    }
 
     this.renderContent();
 
-    // Generate responsive simulated AI turn
+    // Scroll chat to bottom
+    const box = document.getElementById('dialogue-messages');
+    if (box) box.scrollTop = box.scrollHeight;
+
+    // Simulate AI response
     setTimeout(() => {
-      const aiReply = this.generateAiResponse(userText, s);
+      const aiReply = this.generateAiResponse(text);
       this.messages.push({
         sender: 'ai',
-        name: s.ai_role || 'AI Partner',
+        name: this.selectedScenario?.ai_role || 'Partner',
         text: aiReply
       });
       this.renderContent();
+      const b = document.getElementById('dialogue-messages');
+      if (b) b.scrollTop = b.scrollHeight;
       speech.speak(aiReply);
     }, 800);
   }
 
-  generateAiResponse(userInput, scenario) {
-    const lower = userInput.toLowerCase();
-    const title = scenario.title.toLowerCase();
-
-    if (title.includes('restaurant')) {
-      if (lower.includes('water') || lower.includes('drink') || lower.includes('wine')) {
-        return "Right away! Would you also like to see today's chef specials for your main course?";
-      }
-      if (lower.includes('bill') || lower.includes('check')) {
-        return "Certainly! Here is your bill. Would you prefer paying with card or cash today?";
-      }
-      if (lower.includes('menu') || lower.includes('order')) {
-        return "Our handmade pasta and grilled salmon are very popular tonight. What can I get started for you?";
-      }
-      return "Excellent choice! I've noted that down. Is there anything else I can get you at the moment?";
+  generateAiResponse(userText) {
+    const lower = userText.toLowerCase();
+    if (lower.includes('coffee') || lower.includes('tea') || lower.includes('water') || lower.includes('like')) {
+      return 'Certainly! That sounds great. Would you like anything else to eat with that?';
     }
-
-    if (title.includes('interview')) {
-      if (lower.includes('experience') || lower.includes('worked') || lower.includes('year')) {
-        return "That sounds like valuable experience. How do you usually handle tight deadlines or difficult technical roadblocks?";
-      }
-      if (lower.includes('strength') || lower.includes('skill')) {
-        return "Those are definitely key qualities for our team. Could you give a specific example of when you applied that in a project?";
-      }
-      return "Thank you for sharing that. Now, what interests you most about working at our company?";
+    if (lower.includes('how much') || lower.includes('bill') || lower.includes('check')) {
+      return 'That will be 4 dollars, please. Are you paying by card or cash?';
     }
-
-    if (lower.includes('how are you') || lower.includes('nice to meet you')) {
-      return "I'm doing very well, thank you! It's wonderful meeting you. What do you enjoy doing most in your free time?";
+    if (lower.includes('hello') || lower.includes('hi')) {
+      return 'Hello there! How can I assist you today?';
     }
-
-    return "That's very interesting! Tell me more about how you got into that.";
+    if (lower.includes('thank')) {
+      return "You're very welcome! Have a wonderful day!";
+    }
+    return `That's clear. Thank you for telling me. Let's continue: what would you like to do next?`;
   }
 }

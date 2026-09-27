@@ -1,10 +1,11 @@
 /**
  * LinguaForge Main Application Entrypoint
- * Router, View Orchestrator, and Lifecycle Manager
+ * Router, View Orchestrator, Multi-User Auth, and Lifecycle Manager
  */
 
 import { api } from './api.js';
 import { state } from './state.js';
+import { AuthModal } from './views/AuthModal.js';
 import { DashboardView } from './views/DashboardView.js';
 import { AssessmentView } from './views/AssessmentView.js';
 import { GrammarView } from './views/GrammarView.js';
@@ -21,6 +22,8 @@ class App {
   constructor() {
     this.viewport = document.getElementById('viewport');
     this.pageTitle = document.getElementById('page-title');
+    this.authModal = null;
+
     this.views = {
       dashboard: new DashboardView(),
       assessment: new AssessmentView(),
@@ -36,17 +39,17 @@ class App {
     };
 
     this.titles = {
-      dashboard: 'Personal Dashboard & Routine',
-      assessment: '10-Skill Diagnostic Assessment',
-      grammar: 'Grammar Academy & Rules',
-      vocabulary: 'Spaced Repetition (SRS) Studio',
-      reading: 'Reading Comprehension Lab',
-      listening: 'Listening & Phonics Lab',
-      writing: 'Writing Studio & Live Evaluator',
-      speaking: 'Speaking & Conversational Simulator',
-      pronunciation: 'Pronunciation & Accent Training',
-      errors: 'Personal Error Bank (Hata Defteri)',
-      progress: 'Mastery Trajectory & Analytics'
+      dashboard: 'Genel Bakış & Günlük Rutin',
+      assessment: '10 Becerili Seviye Belirleme Sınavı',
+      grammar: 'Gramer Akademisi & Kurallar',
+      vocabulary: 'Akıllı Kelime Kartları (SRS)',
+      reading: 'Okuma & Anlama Laboratuvarı',
+      listening: 'Dinleme & Telaffuz Laboratuvarı',
+      writing: 'Yazma Stüdyosu & Anlık Değerlendirme',
+      speaking: 'Konuşma & Diyalog Simülatörü',
+      pronunciation: 'Telaffuz & Aksan Eğitimi',
+      errors: 'Kişisel Hata Defteri',
+      progress: 'Gelişim Analizi & Beceriler'
     };
   }
 
@@ -54,61 +57,68 @@ class App {
     this.bindNavigation();
     this.bindSessionTimer();
     this.bindSidebarToggle();
-
-    // Check session or prompt onboarding
-    await this.ensureUserSession();
+    this.bindLogout();
 
     // Listen to state view changes
     state.on('view:change', (viewName) => {
       this.navigateTo(viewName);
     });
 
-    // Initial navigation
-    this.navigateTo('dashboard');
+    // Check user session or show AuthModal
+    await this.ensureUserSession();
   }
 
   async ensureUserSession() {
-    if (!api.userId) {
-      // Auto-register or prompt
-      try {
-        const defaultUser = await api.register('learner', 'English Learner');
-        state.setUser(defaultUser);
-        this.updateUserDisplay(defaultUser);
-      } catch (err) {
-        try {
-          const loggedIn = await api.login('learner');
-          state.setUser(loggedIn);
-          this.updateUserDisplay(loggedIn);
-        } catch (e) {
-          console.error('Session init error:', e);
-        }
-      }
+    const user = api.getCurrentUser();
+    if (!user) {
+      this.showLoginModal();
     } else {
-      try {
-        const profile = await api.getProfile();
-        this.updateUserDisplay(profile.user);
-      } catch (e) {
-        // If user not found, register new
-        try {
-          const fresh = await api.register('learner_' + Math.floor(Math.random() * 10000), 'English Learner');
-          state.setUser(fresh);
-          this.updateUserDisplay(fresh);
-        } catch (regErr) {
-          console.error('Registration fallback failed:', regErr);
-        }
-      }
+      state.setUser(user);
+      this.updateUserDisplay(user);
+      this.navigateTo('dashboard');
     }
   }
 
+  showLoginModal() {
+    this.authModal = new AuthModal((user) => {
+      state.setUser(user);
+      this.updateUserDisplay(user);
+      this.navigateTo('dashboard');
+    });
+    this.authModal.show();
+  }
+
+  bindLogout() {
+    document.getElementById('btn-logout')?.addEventListener('click', () => {
+      api.logout();
+      state.setUser(null);
+      this.updateUserDisplay(null);
+      state.showToast('Oturum kapatıldı. Yeni bir kullanıcı ile giriş yapabilirsiniz.', 'info');
+      this.showLoginModal();
+    });
+  }
+
   updateUserDisplay(user) {
-    if (!user) return;
     const nameEl = document.getElementById('header-username');
-    if (nameEl) nameEl.textContent = user.displayName || user.username || 'Learner';
     const avatarEl = document.getElementById('header-user-avatar');
+    const statusEl = document.getElementById('header-user-status');
+    const cefrBadge = document.getElementById('sidebar-cefr-badge');
+
+    if (!user) {
+      if (nameEl) nameEl.textContent = 'Giriş Yapılmadı';
+      if (avatarEl) avatarEl.textContent = 'A1';
+      if (statusEl) statusEl.textContent = "0'dan Başlangıç Yolu";
+      if (cefrBadge) cefrBadge.textContent = 'A1';
+      return;
+    }
+
+    if (nameEl) nameEl.textContent = user.displayName || user.username;
     if (avatarEl) {
-      const initials = (user.displayName || 'EN').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+      const initials = (user.displayName || user.username || 'A1').slice(0, 2).toUpperCase();
       avatarEl.textContent = initials;
     }
+    if (statusEl) statusEl.textContent = "0'dan Başlangıç (A1)";
+    if (cefrBadge) cefrBadge.textContent = user.cefr_level || 'A1';
   }
 
   bindNavigation() {
@@ -126,6 +136,11 @@ class App {
   }
 
   navigateTo(viewName) {
+    if (!api.getCurrentUser()) {
+      this.showLoginModal();
+      return;
+    }
+
     if (!this.views[viewName]) return;
 
     // Update active nav button
@@ -166,9 +181,11 @@ class App {
   bindSidebarToggle() {
     const toggleBtn = document.getElementById('sidebar-toggle');
     const sidebar = document.getElementById('sidebar');
-    toggleBtn?.addEventListener('click', () => {
-      sidebar?.classList.toggle('open');
-    });
+    if (toggleBtn && sidebar) {
+      toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+      });
+    }
   }
 }
 

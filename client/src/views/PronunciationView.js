@@ -1,6 +1,6 @@
 /**
  * Pronunciation & Accent Training Lab
- * Minimal pairs, silent letters, past -ed ending rules, and voice recording feedback
+ * Minimal pairs, silent letters, past -ed ending rules, and voice recording feedback with Turkish guidance
  */
 import { state } from '../state.js';
 import { speech } from '../speech.js';
@@ -24,21 +24,21 @@ export class PronunciationView {
         <!-- Header -->
         <div class="card pron-header">
           <div class="pron-header-left">
-            <h1 class="pron-title">Pronunciation & Accent Lab</h1>
-            <p class="pron-subtitle">Train acoustic phonetics, reduce Turkish accent interference, and master natural English rhythm</p>
+            <h1 class="pron-title">Telaffuz & Aksan Koçu</h1>
+            <p class="pron-subtitle">Türkçe aksan etkisini azaltın, İngilizcenin fonetik seslerini ve doğal ritmini keşfedin</p>
           </div>
           <div class="pron-tabs">
             <button class="btn ${this.activeTab === 'minimal_pairs' ? 'btn-primary' : 'btn-secondary'}" data-tab="minimal_pairs">
-              Minimal Pairs
+              Benzer Sesler (Minimal Pairs)
             </button>
             <button class="btn ${this.activeTab === 'silent_letters' ? 'btn-primary' : 'btn-secondary'}" data-tab="silent_letters">
-              Silent Letters
+              Okunmayan Harfler (Silent)
             </button>
             <button class="btn ${this.activeTab === 'ed_endings' ? 'btn-primary' : 'btn-secondary'}" data-tab="ed_endings">
-              Past "-ed" Endings
+              Geçmiş Zaman (-ed) Kuralı
             </button>
             <button class="btn ${this.activeTab === 'sentence_stress' ? 'btn-primary' : 'btn-secondary'}" data-tab="sentence_stress">
-              Sentence Stress
+              Cümle Vurgusu & Ritim
             </button>
           </div>
         </div>
@@ -69,18 +69,18 @@ export class PronunciationView {
 
   renderMinimalPairs() {
     const pairs = [
-      { soundA: '/ɪ/ (short)', wordA: 'Ship', soundB: '/iː/ (long)', wordB: 'Sheep', tip: 'Turkish only has one /i/ sound. In English, /ɪ/ is relaxed and short, while /iː/ is smiled and long.' },
-      { soundA: '/æ/ (open)', wordA: 'Bat', soundB: '/e/ (mid)', wordB: 'Bet', tip: 'Open your jaw wide for /æ/ as in "apple" or "cat".' },
-      { soundA: '/θ/ (unvoiced th)', wordA: 'Think', soundB: '/s/ (sibilant)', wordB: 'Sink', tip: 'Place your tongue between your upper and lower teeth for /θ/. Do not say /s/!' },
-      { soundA: '/w/ (rounded)', wordA: 'Wet', soundB: '/v/ (labiodental)', wordB: 'Vet', tip: 'For /w/, round your lips into an "O" shape without touching teeth to lips.' }
+      { soundA: '/ɪ/ (Kısa i)', wordA: 'Ship (Gemi)', soundB: '/iː/ (Uzun i)', wordB: 'Sheep (Koyun)', tip: 'Türkçede tek bir /i/ sesi vardır. İngilizcede ise /ɪ/ gevşek ve çok kısadır; /iː/ ise dudaklar yana açılarak gülümser gibi uzatılır.' },
+      { soundA: '/æ/ (Açık a/e)', wordA: 'Bat (Yarasa)', soundB: '/e/ (Düz e)', wordB: 'Bet (Bahis)', tip: '"Apple" veya "cat" derken çenenizi Türkçedeki "e" sesine göre daha aşağı açın (/æ/).' },
+      { soundA: '/θ/ (Peltik th)', wordA: 'Think (Düşünmek)', soundB: '/s/ (Keskin s)', wordB: 'Sink (Batmak)', tip: 'Dilinizin ucunu ön dişlerinizin arasına hafifçe sıkıştırarak nefes verin (/θ/). Kesinlikle Türkçedeki "s" gibi okumayın!' },
+      { soundA: '/w/ (Yuvarlak dudak)', wordA: 'Wet (Islak)', soundB: '/v/ (Diş-dudak)', wordB: 'Vet (Veteriner)', tip: '/w/ sesinde dişlerinizi asla alt dudağınıza değdirmeyin; dudaklarınızı ıslık çalar gibi "O" yapın.' }
     ];
 
     return `
       <div class="card minimal-pairs-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">🎧 Minimal Pairs Discrimination</h2>
-            <div class="card-subtitle">Train your ears and vocal cords to contrast confusing vowel and consonant sounds</div>
+            <h2 class="card-title">🎧 Karışan Sesleri Ayırt Etme (Minimal Pairs)</h2>
+            <div class="card-subtitle">Kulaklarınızı ve dilinizi İngilizcenin kritik ses ayrımlarına alıştırın</div>
           </div>
         </div>
 
@@ -91,7 +91,7 @@ export class PronunciationView {
                 <div class="word-box word-a">
                   <span class="sound-tag">${p.soundA}</span>
                   <div class="word-title">${p.wordA}</div>
-                  <button class="tts-play-btn pron-tts" data-text="${p.wordA}">🔊 Listen</button>
+                  <button class="tts-play-btn pron-tts" data-text="${p.wordA.split(' ')[0]}">🔊 Dinle</button>
                 </div>
 
                 <div class="contrast-symbol">vs</div>
@@ -99,20 +99,20 @@ export class PronunciationView {
                 <div class="word-box word-b">
                   <span class="sound-tag">${p.soundB}</span>
                   <div class="word-title">${p.wordB}</div>
-                  <button class="tts-play-btn pron-tts" data-text="${p.wordB}">🔊 Listen</button>
+                  <button class="tts-play-btn pron-tts" data-text="${p.wordB.split(' ')[0]}">🔊 Dinle</button>
                 </div>
               </div>
 
               <div class="pair-tip">
-                💡 <strong>Linguistic Tip:</strong> ${p.tip}
+                💡 <strong>Türkçe İpucu:</strong> ${p.tip}
               </div>
 
               <div class="mic-practice-box">
-                <button class="btn btn-secondary btn-sm test-mic-btn" data-target="${p.wordA}">
-                  🎙️ Practice "${p.wordA}"
+                <button class="btn btn-secondary btn-sm test-mic-btn" data-target="${p.wordA.split(' ')[0]}">
+                  🎙️ "${p.wordA.split(' ')[0]}" Telaffuz Et
                 </button>
-                <button class="btn btn-secondary btn-sm test-mic-btn" data-target="${p.wordB}">
-                  🎙️ Practice "${p.wordB}"
+                <button class="btn btn-secondary btn-sm test-mic-btn" data-target="${p.wordB.split(' ')[0]}">
+                  🎙️ "${p.wordB.split(' ')[0]}" Telaffuz Et
                 </button>
               </div>
             </div>
@@ -124,33 +124,37 @@ export class PronunciationView {
 
   renderSilentLetters() {
     const silentWords = [
-      { word: 'Doubt', phonetic: '/daʊt/', silent: 'b', note: 'The letter "b" is silent (also in debt, subtle).' },
-      { word: 'Receipt', phonetic: '/rɪˈsiːt/', silent: 'p', note: 'The letter "p" is completely silent.' },
-      { word: 'Knight', phonetic: '/naɪt/', silent: 'k & gh', note: '"k" and "gh" are silent, rhyming with night.' },
-      { word: 'Island', phonetic: '/ˈaɪ.lənd/', silent: 's', note: 'Never pronounce the "s" in island!' },
-      { word: 'Honest', phonetic: '/ˈɒn.ɪst/', silent: 'h', note: 'Silent "h", requiring the article "an honest person".' },
-      { word: 'Wednesday', phonetic: '/ˈwenz.deɪ/', silent: 'd', note: 'The first "d" and second "e" are silent.' }
+      { word: 'Doubt', meaning: 'Şüphe', phonetic: '/daʊt/', silent: 'b', note: '"b" harfi tamamen okunmaz (ayrıca debt, subtle).' },
+      { word: 'Receipt', meaning: 'Fiş/Makbuz', phonetic: '/rɪˈsiːt/', silent: 'p', note: '"p" harfi okunmaz, "risiit" diye telaffuz edilir.' },
+      { word: 'Knight', meaning: 'Şövalye', phonetic: '/naɪt/', silent: 'k & gh', note: '"k" ve "gh" harfleri okunmaz, "nayt" (night ile aynı).' },
+      { word: 'Island', meaning: 'Ada', phonetic: '/ˈaɪ.lənd/', silent: 's', note: '"s" harfi kesinlikle okunmaz, "aylınd" diye okunur.' },
+      { word: 'Honest', meaning: 'Dürüst', phonetic: '/ˈɒn.ɪst/', silent: 'h', note: '"h" okunmaz, bu yüzden "an honest person" denir.' },
+      { word: 'Wednesday', meaning: 'Çarşamba', phonetic: '/ˈwenz.deɪ/', silent: 'd', note: 'İlk "d" ve ortadaki "e" okunmaz: "wenzdey".' }
     ];
 
     return `
       <div class="card silent-letters-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">🤫 The English Silent Letters Workshop</h2>
-            <div class="card-subtitle">English spelling reflects history, not phonetic 1:1 spelling like Turkish</div>
+            <h2 class="card-title">🤫 Okunmayan (Sessiz) Harfler</h2>
+            <div class="card-subtitle">İngilizce Türkçedeki gibi yazıldığı gibi okunmaz; tarihi kökenleri vardır</div>
           </div>
         </div>
 
-        <div class="silent-grid">
+        <div class="silent-words-grid">
           ${silentWords.map(w => `
-            <div class="silent-word-card">
-              <div class="silent-word-header">
-                <div class="silent-word-title">${w.word}</div>
+            <div class="silent-word-item">
+              <div class="silent-top">
+                <strong class="silent-word">${w.word}</strong>
+                <span class="silent-phonetic">${w.phonetic}</span>
                 <button class="tts-play-btn pron-tts" data-text="${w.word}">🔊</button>
               </div>
-              <div class="phonetic-ipa">${w.phonetic}</div>
-              <div class="silent-letter-badge">Silent: <strong>${w.silent}</strong></div>
+              <div class="silent-meaning">🇹🇷 Anlamı: ${w.meaning}</div>
+              <div class="silent-rule">Okunmayan: <strong>${w.silent}</strong></div>
               <p class="silent-note">${w.note}</p>
+              <button class="btn btn-secondary btn-sm test-mic-btn" data-target="${w.word}" style="margin-top: 8px;">
+                🎙️ Mikrofona Söyle
+              </button>
             </div>
           `).join('')}
         </div>
@@ -163,40 +167,40 @@ export class PronunciationView {
       <div class="card ed-endings-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">⏱️ Regular Past Tense "-ed" Pronunciation</h2>
-            <div class="card-subtitle">Master the 3 distinct sounds of regular past tense verbs</div>
+            <h2 class="card-title">📐 Geçmiş Zaman "-ed" Ekinin 3 Farklı Okunuşu</h2>
+            <div class="card-subtitle">Türk öğrencilerin en çok yaptığı "her -ed ekini 'ıd' okuma" hatasını düzeltin</div>
           </div>
         </div>
 
-        <div class="ed-rules-grid">
-          <div class="ed-rule-col rule-id">
-            <div class="rule-badge">/ɪd/ or /əd/ (Extra Syllable)</div>
-            <p class="rule-condition">Used ONLY after verbs ending in <strong>/t/</strong> or <strong>/d/</strong> sounds.</p>
-            <div class="ed-examples-list">
-              <div class="ed-ex-item" data-text="Wanted">Wanted (want-ed) 🔊</div>
-              <div class="ed-ex-item" data-text="Needed">Needed (need-ed) 🔊</div>
-              <div class="ed-ex-item" data-text="Decided">Decided (de-cid-ed) 🔊</div>
-            </div>
+        <div class="grid-3 ed-rules-grid">
+          <div class="ed-rule-box">
+            <div class="ed-tag">1. /ɪd/ veya /əd/</div>
+            <div class="ed-condition">Sadece sonu <strong>T</strong> veya <strong>D</strong> ile biten fiillerde ekstra hece olur!</div>
+            <ul class="ed-examples">
+              <li>Wanted <button class="tts-play-btn pron-tts" data-text="Wanted">🔊</button></li>
+              <li>Decided <button class="tts-play-btn pron-tts" data-text="Decided">🔊</button></li>
+              <li>Started <button class="tts-play-btn pron-tts" data-text="Started">🔊</button></li>
+            </ul>
           </div>
 
-          <div class="ed-rule-col rule-t">
-            <div class="rule-badge">/t/ (Voiceless Ending)</div>
-            <p class="rule-condition">After voiceless consonants: /p/, /k/, /s/, /ʃ/, /tʃ/, /f/.</p>
-            <div class="ed-examples-list">
-              <div class="ed-ex-item" data-text="Worked">Worked (workt) 🔊</div>
-              <div class="ed-ex-item" data-text="Watched">Watched (watcht) 🔊</div>
-              <div class="ed-ex-item" data-text="Laughed">Laughed (lafft) 🔊</div>
-            </div>
+          <div class="ed-rule-box">
+            <div class="ed-tag">2. /t/ (Sessiz)</div>
+            <div class="ed-condition">Boğaz titremeyen seslerden sonra (p, k, s, sh, ch, f):</div>
+            <ul class="ed-examples">
+              <li>Worked (wörkt) <button class="tts-play-btn pron-tts" data-text="Worked">🔊</button></li>
+              <li>Watched (woçt) <button class="tts-play-btn pron-tts" data-text="Watched">🔊</button></li>
+              <li>Stopped (stopt) <button class="tts-play-btn pron-tts" data-text="Stopped">🔊</button></li>
+            </ul>
           </div>
 
-          <div class="ed-rule-col rule-d">
-            <div class="rule-badge">/d/ (Voiced Ending)</div>
-            <p class="rule-condition">After voiced sounds: vowels and /b/, /g/, /v/, /z/, /m/, /n/, /l/, /r/.</p>
-            <div class="ed-examples-list">
-              <div class="ed-ex-item" data-text="Played">Played (playd) 🔊</div>
-              <div class="ed-ex-item" data-text="Opened">Opened (opend) 🔊</div>
-              <div class="ed-ex-item" data-text="Called">Called (calld) 🔊</div>
-            </div>
+          <div class="ed-rule-box">
+            <div class="ed-tag">3. /d/ (Sesli)</div>
+            <div class="ed-condition">Diğer tüm sesli ve yumuşak harflerden sonra:</div>
+            <ul class="ed-examples">
+              <li>Played (pleyd) <button class="tts-play-btn pron-tts" data-text="Played">🔊</button></li>
+              <li>Cleaned (kliind) <button class="tts-play-btn pron-tts" data-text="Cleaned">🔊</button></li>
+              <li>Lived (livd) <button class="tts-play-btn pron-tts" data-text="Lived">🔊</button></li>
+            </ul>
           </div>
         </div>
       </div>
@@ -204,87 +208,82 @@ export class PronunciationView {
   }
 
   renderSentenceStress() {
-    const drillSentences = [
-      { text: "I didn't say he stole the money.", stress: "NEUTRAL", note: "Baseline statement without marked emphasis." },
-      { text: "I didn't say HE stole the money.", stress: "EMPHASIS ON 'HE'", note: "Someone else stole it, not him." },
-      { text: "I didn't say he STOLE the money.", stress: "EMPHASIS ON 'STOLE'", note: "Maybe he borrowed it or received it." },
-      { text: "I didn't say he stole the MONEY.", stress: "EMPHASIS ON 'MONEY'", note: "He stole something else (e.g. jewelry)." }
-    ];
-
     return `
       <div class="card sentence-stress-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">🎵 Sentence Stress & Pragmatic Meaning</h2>
-            <div class="card-subtitle">In English, changing WHICH word you stress completely changes the underlying meaning</div>
+            <h2 class="card-title">🎵 Cümle Vurgusu & İngilizcenin Doğal Müziği</h2>
+            <div class="card-subtitle">İngilizce ritmik (stress-timed) bir dildir; Türkçedeki gibi her hece eşit okunmaz</div>
           </div>
         </div>
 
-        <div class="stress-drills-list">
-          ${drillSentences.map(d => `
-            <div class="stress-item">
-              <div class="stress-top">
-                <span class="stress-badge">${d.stress}</span>
-                <button class="tts-play-btn pron-tts" data-text="${d.text}">🔊 Listen</button>
-              </div>
-              <div class="stress-sentence">${d.text}</div>
-              <div class="stress-meaning">👉 Implication: ${d.note}</div>
+        <div class="stress-examples-list">
+          <div class="stress-item">
+            <div class="stress-sentence">
+              "I <strong style="color: #6ee7b7;">WANT</strong> to <strong style="color: #6ee7b7;">GO</strong> to the <strong style="color: #6ee7b7;">STORE</strong>."
             </div>
-          `).join('')}
+            <div class="stress-explanation">
+              Türkçe düşünerek her kelimeyi aynı güçle okumayın. Anlam taşıyan kelimeler (WANT, GO, STORE) vurgulanır; "to" ve "the" hızlıca ve zayıf söylenir.
+            </div>
+            <button class="btn btn-secondary btn-sm pron-tts" data-text="I want to go to the store.">🔊 Doğal Ritmi Dinle</button>
+          </div>
+
+          <div class="stress-item">
+            <div class="stress-sentence">
+              "She <strong style="color: #6ee7b7;">LIVES</strong> in a <strong style="color: #6ee7b7;">BIG</strong> <strong style="color: #6ee7b7;">HOUSE</strong>."
+            </div>
+            <div class="stress-explanation">
+              Vurgulanan kelimeler daha yüksek ve belirgindir: "LIVES", "BIG", "HOUSE".
+            </div>
+            <button class="btn btn-secondary btn-sm pron-tts" data-text="She lives in a big house.">🔊 Doğal Ritmi Dinle</button>
+          </div>
         </div>
       </div>
     `;
   }
 
   bindEvents() {
-    this.container.querySelectorAll('.pron-tabs .btn').forEach(btn => {
+    document.querySelectorAll('.pron-tabs .btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.activeTab = btn.dataset.tab;
         this.renderContent();
       });
     });
 
-    // TTS speaker buttons
-    this.container.querySelectorAll('.pron-tts').forEach(btn => {
+    document.querySelectorAll('.pron-tts').forEach(btn => {
       btn.addEventListener('click', () => {
-        speech.speak(btn.dataset.text);
+        const text = btn.dataset.text;
+        if (text) speech.speak(text);
       });
     });
 
-    this.container.querySelectorAll('.ed-ex-item').forEach(item => {
-      item.addEventListener('click', () => {
-        speech.speak(item.dataset.text);
-      });
-    });
-
-    // Mic practice buttons
-    this.container.querySelectorAll('.test-mic-btn').forEach(btn => {
+    document.querySelectorAll('.test-mic-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const targetWord = btn.dataset.target;
-        if (!speech.isSttSupported()) {
-          state.showToast('Speech recognition not supported in this browser.', 'error');
+        const target = btn.dataset.target;
+        if (!speech.hasRecognition) {
+          state.showToast('Mikrofon ses tanıma bu tarayıcıda desteklenmiyor.', 'error');
           return;
         }
 
-        state.showToast(`Say "${targetWord}" into your microphone now...`, 'info', 4000);
-        btn.textContent = '🔴 Listening...';
+        btn.textContent = '🎙️ Dinleniyor...';
+        btn.classList.add('pulse');
 
-        speech.startListening({
-          onResult: (res) => {
-            const spoken = res.final || res.interim;
-            const score = speech.calculateSimilarity(spoken, targetWord);
-            if (score >= 80) {
-              state.showToast(`Excellent! You said "${spoken}" (${score}% accurate)`, 'success');
-            } else {
-              state.showToast(`Detected: "${spoken}" (${score}% match). Try listening and repeating again.`, 'error');
-            }
-          },
-          onEnd: () => {
-            btn.textContent = `🎙️ Practice "${targetWord}"`;
-          },
-          onError: () => {
-            btn.textContent = `🎙️ Practice "${targetWord}"`;
+        speech.listen((transcript) => {
+          btn.classList.remove('pulse');
+          const cleanTrans = transcript.trim().toLowerCase();
+          const cleanTarget = target.trim().toLowerCase();
+          const isMatch = cleanTrans.includes(cleanTarget) || cleanTarget.includes(cleanTrans);
+
+          if (isMatch) {
+            btn.textContent = `✅ Harika! "${transcript}"`;
+            state.showToast(`Mükemmel telaffuz! Algılanan: "${transcript}"`, 'success');
+          } else {
+            btn.textContent = `Tekrar dene (Duyulan: "${transcript}")`;
+            state.showToast(`Duyulan: "${transcript}". Hedef kelimeye tekrar çalışın.`, 'info');
           }
+        }, () => {
+          btn.classList.remove('pulse');
+          btn.textContent = `🎙️ "${target}" Telaffuz Et`;
         });
       });
     });
