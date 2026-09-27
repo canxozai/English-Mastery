@@ -162,8 +162,9 @@ app.get('/api/assessment/:id/questions/:skill', ensureUser, (req, res) => {
 
 app.post('/api/assessment/:id/answer', ensureUser, (req, res) => {
   try {
-    const { questionBankId, answer, responseTimeMs } = req.body;
-    const result = assessmentEngine.submitAnswer(db, parseInt(req.params.id), questionBankId, answer, responseTimeMs || 0);
+    const { questionBankId, answer, userAnswer, responseTimeMs } = req.body;
+    const finalAnswer = userAnswer !== undefined ? userAnswer : (answer !== undefined ? answer : '');
+    const result = assessmentEngine.submitAnswer(db, parseInt(req.params.id), questionBankId, finalAnswer, responseTimeMs || 0);
     res.json(result);
   } catch (err) {
     console.error('Answer submission error:', err);

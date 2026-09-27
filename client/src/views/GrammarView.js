@@ -5,6 +5,7 @@
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { speech } from '../speech.js';
+import { wordInspector } from '../word-inspector.js';
 
 export class GrammarView {
   constructor() {
@@ -215,10 +216,13 @@ export class GrammarView {
           <div class="exercise-prompt">${ex.prompt}</div>
         </div>
 
+        <!-- Vocabulary & Structure Hints -->
+        ${wordInspector.renderQuestionVocabBar({ question: ex.prompt, options: options, id: ex.id })}
+
         ${options ? `
           <div class="exercise-options-grid">
             ${options.map((opt, i) => `
-              <button class="exercise-opt-btn" data-value="${opt}">
+              <button class="exercise-opt-btn" data-opt-idx="${i}" data-value="${opt}">
                 <span class="opt-prefix">${String.fromCharCode(65 + i)}</span>
                 <span class="opt-text">${opt}</span>
               </button>
@@ -265,6 +269,9 @@ export class GrammarView {
         if (text) speech.speak(text);
       });
     });
+
+    // Bind WordInspector drawer events
+    wordInspector.bindVocabDrawerEvents(this.container);
 
     // Exercise options
     document.querySelectorAll('.exercise-opt-btn').forEach(btn => {

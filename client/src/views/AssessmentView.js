@@ -6,6 +6,7 @@
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { speech } from '../speech.js';
+import { wordInspector } from '../word-inspector.js';
 
 export class AssessmentView {
   constructor() {
@@ -173,13 +174,19 @@ export class AssessmentView {
             ${q.question}
           </div>
 
+          <!-- Instant Question Vocabulary & Structure Hints Drawer -->
+          ${wordInspector.renderQuestionVocabBar(q)}
+
           <div class="question-options-list">
-            ${(q.options || []).map((opt, i) => `
-              <div class="option-item" role="button" tabindex="0" data-value="${opt}">
-                <span class="option-letter">${String.fromCharCode(65 + i)}</span>
-                <span class="option-label">${opt}</span>
-              </div>
-            `).join('')}
+            ${(q.options || []).map((opt, i) => {
+              const cleanOpt = (opt || '').toString().replace(/^["']|["']$/g, '');
+              return `
+                <div class="option-item" role="button" tabindex="0" data-index="${i}">
+                  <span class="option-letter">${String.fromCharCode(65 + i)}</span>
+                  <span class="option-label">${cleanOpt}</span>
+                </div>
+              `;
+            }).join('')}
           </div>
 
           <div class="question-footer">
@@ -202,11 +209,15 @@ export class AssessmentView {
       speech.speak(q.question, { rate: 0.9 });
     });
 
+    // Bind WordInspector drawer events
+    wordInspector.bindVocabDrawerEvents(this.container);
+
     document.querySelectorAll('.option-item').forEach(el => {
       const selectHandler = () => {
         document.querySelectorAll('.option-item').forEach(o => o.classList.remove('selected'));
         el.classList.add('selected');
-        this.selectedOption = el.dataset.value;
+        const optIndex = parseInt(el.dataset.index, 10);
+        this.selectedOption = (q.options || [])[optIndex];
         const submitBtn = document.getElementById('submit-answer-btn');
         if (submitBtn) submitBtn.disabled = false;
       };
@@ -221,7 +232,7 @@ export class AssessmentView {
     });
 
     document.getElementById('submit-answer-btn')?.addEventListener('click', () => {
-      if (this.selectedOption) {
+      if (this.selectedOption !== null && this.selectedOption !== undefined) {
         this.submitAnswer(q.id, this.selectedOption);
       }
     });
@@ -239,13 +250,24 @@ export class AssessmentView {
       this.showQuestionFeedback(result);
     } catch (err) {
       state.showToast('Cevap kaydedilemedi: ' + err.message, 'error');
-      if (submitBtn) submitBtn.disabled = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Cevabı Onayla →';
+      }
     }
   }
 
   showQuestionFeedback(result) {
     const card = document.getElementById('feedback-card');
     if (!card) return;
+
+    // Hide submit button to avoid duplicate attempts or confusion
+    const submitBtn = document.getElementById('submit-answer-btn');
+    if (submitBtn) submitBtn.style.display = 'none';
+
+    const isLastQuestion =
+      this.currentSkillIndex === this.skills.length - 1 &&
+      this.currentQuestionIndex === this.currentQuestions.length - 1;
 
     card.className = `card feedback-card ${result.isCorrect ? 'correct' : 'incorrect'}`;
     card.innerHTML = `
@@ -257,11 +279,12 @@ export class AssessmentView {
         ${!result.isCorrect ? `<p class="correct-answer-text"><strong>Doğru seçenek:</strong> ${result.correctAnswer}</p>` : ''}
         <p class="explanation-text">${result.explanationTr || result.explanation || ''}</p>
       </div>
-      <button class="btn btn-primary" id="btn-next-question">
-        Sonraki Soruya Geç →
+      <button class="btn btn-primary btn-lg" id="btn-next-question">
+        ${isLastQuestion ? '🎉 Sınavı Bitir ve Seviyemi Belirle →' : 'Sonraki Soruya Geç →'}
       </button>
     `;
     card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     document.getElementById('btn-next-question')?.addEventListener('click', () => {
       this.currentQuestionIndex++;

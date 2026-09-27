@@ -346,7 +346,9 @@ class LocalService {
   async submitAssessmentAnswer(assessmentId, questionBankId, userAnswer) {
     const all = staticData.assessment_question_bank || [];
     const q = all.find(item => item.id === questionBankId) || all[0];
-    const isCorrect = userAnswer.trim().toLowerCase() === q.correct_answer.trim().toLowerCase();
+    const normalizedUser = (userAnswer || '').toString().trim().toLowerCase().replace(/^["']|["']$/g, '');
+    const normalizedCorrect = (q.correct_answer || '').toString().trim().toLowerCase().replace(/^["']|["']$/g, '');
+    const isCorrect = normalizedUser === normalizedCorrect;
 
     if (this.currentAssessment) {
       this.currentAssessment.totalCount = (this.currentAssessment.totalCount || 0) + 1;
@@ -538,6 +540,38 @@ class LocalService {
     stats.total_words_learned = (stats.total_words_learned || 0) + (rating >= 2 ? 1 : 0);
     this.setUserData('stats', stats);
     return { success: true };
+  }
+
+  async addCustomWord(word, translation, cefrLevel = 'A1', example = '') {
+    const items = this.getUserData('srs_items') || [];
+    const cleanWord = (word || '').trim();
+    if (!cleanWord) return null;
+    const existing = items.find(i => (i.word || '').toLowerCase() === cleanWord.toLowerCase());
+    if (existing) {
+      existing.due = true;
+      if (translation && (!existing.definition_tr || existing.definition_tr === '-')) {
+        existing.definition_tr = translation;
+      }
+      this.setUserData('srs_items', items);
+      return existing;
+    }
+    const newItem = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      word: cleanWord,
+      definition_tr: translation || 'Tanım eklenmedi',
+      cefr_level: cefrLevel || 'A1',
+      examples: example ? [example] : [],
+      collocations: [],
+      due: true,
+      repetitions: 0,
+      ease_factor: 2.5,
+      interval: 1,
+      part_of_speech: 'word',
+      created_at: new Date().toISOString()
+    };
+    items.unshift(newItem);
+    this.setUserData('srs_items', items);
+    return newItem;
   }
 
   // Reading

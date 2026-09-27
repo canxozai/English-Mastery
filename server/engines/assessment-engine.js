@@ -102,8 +102,8 @@ export function submitAnswer(db, assessmentId, questionBankId, userAnswer, respo
   let isCorrect = false;
   let score = 0;
 
-  const normalizedUserAnswer = userAnswer.trim().toLowerCase();
-  const normalizedCorrect = question.correct_answer.trim().toLowerCase();
+  const normalizedUserAnswer = (userAnswer || '').toString().trim().toLowerCase().replace(/^["']|["']$/g, '');
+  const normalizedCorrect = (question.correct_answer || '').toString().trim().toLowerCase().replace(/^["']|["']$/g, '');
 
   if (question.question_type === 'multiple_choice') {
     isCorrect = normalizedUserAnswer === normalizedCorrect;

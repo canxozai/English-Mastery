@@ -2243,5 +2243,277 @@
   pointer-events: none !important;
 }
 
+/* ==========================================================================
+   Question Vocabulary & Structure Drawer (Bilinmeyen Kelimeler Rehberi)
+   ========================================================================== */
+.question-vocab-drawer {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  transition: all 0.25s ease;
+}
+
+.question-vocab-drawer.expanded {
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+}
+
+.vocab-drawer-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.vocab-drawer-toggle:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.drawer-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vocab-lightbulb {
+  font-size: 18px;
+}
+
+.drawer-title {
+  color: #f1f5f9;
+}
+
+.drawer-count-badge {
+  background: rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #a5b4fc;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 700;
+}
+
+.drawer-chevron {
+  font-size: 11px;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.vocab-drawer-body {
+  padding: 16px 18px;
+  background: rgba(15, 23, 42, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.vocab-hints-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.vocab-hint-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.vocab-hint-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.hint-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hint-word-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hint-word {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.hint-cefr {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.25);
+  color: #c7d2fe;
+}
+
+.hint-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hint-action-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.hint-action-btn:hover {
+  background: #6366f1;
+  color: white;
+  border-color: #818cf8;
+}
+
+.hint-action-btn.saved {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.hint-meaning {
+  font-size: 13.5px;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.hint-note {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.vocab-hint-footer {
+  font-size: 12px;
+  color: #64748b;
+  padding-top: 6px;
+}
+
+/* ==========================================================================
+   Floating Word Inspector (Metin Seçince / Çift Tıklayınca Çıkan Popover)
+   ========================================================================== */
+.floating-word-inspector {
+  position: absolute;
+  z-index: 99999;
+  width: 300px;
+  background: linear-gradient(145deg, #1e293b, #0f172a);
+  border: 1.5px solid #6366f1;
+  border-radius: 14px;
+  box-shadow: 0 12px 35px -5px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.25);
+  animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 14px 16px;
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.popover-word-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  color: #ffffff;
+}
+
+.popover-cefr {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.3);
+  color: #c7d2fe;
+}
+
+.popover-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.popover-close-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.popover-meaning {
+  font-size: 14.5px;
+  color: #f1f5f9;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.popover-note {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.popover-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.popover-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.popover-btn:hover {
+  background: #6366f1;
+  border-color: #818cf8;
+}
+
+.popover-add {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #c7d2fe;
+}
+
+
 
 

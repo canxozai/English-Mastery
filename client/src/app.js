@@ -17,6 +17,7 @@ import { SpeakingView } from './views/SpeakingView.js';
 import { PronunciationView } from './views/PronunciationView.js';
 import { ErrorBankView } from './views/ErrorBankView.js';
 import { ProgressView } from './views/ProgressView.js';
+import { wordInspector } from './word-inspector.js';
 
 class App {
   constructor() {
@@ -58,6 +59,9 @@ class App {
     this.bindSessionTimer();
     this.bindSidebarToggle();
     this.bindLogout();
+
+    // Enable global double-click & selection instant translator
+    wordInspector.initGlobalListener();
 
     // Listen to state view changes
     state.on('view:change', (viewName) => {

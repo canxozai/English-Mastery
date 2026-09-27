@@ -235,6 +235,10 @@ class ApiClient {
     }
   }
 
+  async addCustomWord(word, translation, cefrLevel = 'A1', example = '') {
+    return await localService.addCustomWord(word, translation, cefrLevel, example);
+  }
+
   // Reading Comprehension
   async getReadingMaterials(params = {}) {
     if (this.useLocal) return localService.getReadingMaterials();

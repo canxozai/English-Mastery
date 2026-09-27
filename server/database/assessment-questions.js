@@ -379,10 +379,10 @@ export const assessmentQuestions = [
     skill: 'comprehension', question_type: 'multiple_choice', cefr_level: 'B1', topic: 'Thinking in English vs Translating',
     question: 'In Turkish, you say "İyi ki doğdun". What is the natural, native English thought process and expression?',
     options: JSON.stringify([
-      '"Good that you were born"',
-      '"Happy Birthday"',
-      '"Nice birthday to you"',
-      '"It is well you came into the world"'
+      'Good that you were born',
+      'Happy Birthday',
+      'Nice birthday to you',
+      'It is well you came into the world'
     ]),
     correct_answer: 'Happy Birthday',
     explanation: 'English does not translate the literal Turkish sentiment; natural English thinking directly maps to "Happy Birthday".',
@@ -449,11 +449,11 @@ export const assessmentQuestions = [
     question: 'When asked a complex question in an interview and you need 5 seconds to think, which filler maintains fluent communication best?',
     options: JSON.stringify([
       'Dead silence for 10 seconds staring at the floor',
-      '"That\'s a really thoughtful question. Let me reflect on that for a second..."',
-      '"Wait! Don\'t talk to me!"',
-      '"I don\'t know anything."'
+      "That's a really thoughtful question. Let me reflect on that for a second...",
+      "Wait! Don't talk to me!",
+      "I don't know anything."
     ]),
-    correct_answer: '"That\'s a really thoughtful question. Let me reflect on that for a second..."',
+    correct_answer: "That's a really thoughtful question. Let me reflect on that for a second...",
     explanation: 'Native speakers use conversational bridge phrases to buy cognitive processing time without breaking conversational flow.',
     explanation_tr: 'Akıcılığı korumak ve düşünme süresi kazanmak için "That\'s a great question, let me reflect on that..." gibi köprü ifadeler kullanılır.'
   }
