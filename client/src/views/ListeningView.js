@@ -150,9 +150,10 @@ export class ListeningView {
                   <div class="l-question-item">
                     <div class="l-question-title">${idx + 1}. ${q.question}</div>
                     <div class="l-options-grid">
-                      ${q.options.map(opt => `
+                      ${q.options.map((opt, i) => `
                         <button class="l-opt-btn ${this.userAnswers[idx] === opt ? 'selected' : ''}" data-q-idx="${idx}" data-val="${opt}">
-                          ${opt}
+                          <span class="opt-prefix">${String.fromCharCode(65 + i)}</span>
+                          <span class="opt-text">${opt}</span>
                         </button>
                       `).join('')}
                     </div>

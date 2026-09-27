@@ -175,7 +175,7 @@ export class AssessmentView {
 
           <div class="question-options-list">
             ${(q.options || []).map((opt, i) => `
-              <div class="option-item" data-value="${opt}">
+              <div class="option-item" role="button" tabindex="0" data-value="${opt}">
                 <span class="option-letter">${String.fromCharCode(65 + i)}</span>
                 <span class="option-label">${opt}</span>
               </div>
@@ -203,12 +203,20 @@ export class AssessmentView {
     });
 
     document.querySelectorAll('.option-item').forEach(el => {
-      el.addEventListener('click', () => {
+      const selectHandler = () => {
         document.querySelectorAll('.option-item').forEach(o => o.classList.remove('selected'));
         el.classList.add('selected');
         this.selectedOption = el.dataset.value;
         const submitBtn = document.getElementById('submit-answer-btn');
         if (submitBtn) submitBtn.disabled = false;
+      };
+
+      el.addEventListener('click', selectHandler);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectHandler();
+        }
       });
     });
 

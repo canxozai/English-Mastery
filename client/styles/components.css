@@ -1893,3 +1893,355 @@
   font-weight: 600;
 }
 
+/* ==========================================================================
+   Question & Options Design System (Assessment, Grammar, Reading, Listening)
+   ========================================================================== */
+
+/* Outer Question Container */
+.question-container {
+  max-width: 820px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.question-card {
+  padding: 32px 36px;
+  background: linear-gradient(145deg, rgba(22, 32, 58, 0.95), rgba(15, 23, 42, 0.95));
+  border: 1.5px solid rgba(99, 102, 241, 0.25);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 0 25px rgba(99, 102, 241, 0.1);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.question-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.question-topic {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.question-instruction {
+  font-size: 14.5px;
+  color: #94a3b8;
+  margin-bottom: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.question-stem {
+  font-size: 21px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.5;
+  margin-bottom: 24px;
+  padding: 22px 26px;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 5px solid var(--primary);
+  border-radius: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Options Container: Stacked Vertically, Clean Spacing */
+.question-options-list,
+.exercise-options-grid,
+.comp-options-list,
+.l-options-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  width: 100% !important;
+  margin-bottom: 24px !important;
+}
+
+/* Individual Option Button / Card */
+.option-item,
+.exercise-opt-btn,
+.comp-opt-btn,
+.l-opt-btn {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: 60px !important;
+  padding: 16px 22px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 2px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 14px !important;
+  color: #f1f5f9 !important;
+  font-family: inherit !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  gap: 16px !important;
+  box-sizing: border-box !important;
+  outline: none !important;
+  user-select: none !important;
+}
+
+.option-item:hover,
+.exercise-opt-btn:hover,
+.comp-opt-btn:hover,
+.l-opt-btn:hover {
+  background: rgba(99, 102, 241, 0.09) !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Option Letter Badge (A, B, C, D) */
+.option-letter,
+.opt-prefix {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  color: #cbd5e1 !important;
+  transition: all 0.2s ease !important;
+}
+
+.option-label,
+.opt-text {
+  flex: 1 !important;
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+  color: #f8fafc !important;
+  padding-right: 32px !important;
+}
+
+/* ==========================================================================
+   SELECTED STATE: Ultra-Clear, Unmistakable Glowing Violet with Checkmark
+   ========================================================================== */
+.option-item.selected,
+.exercise-opt-btn.selected,
+.comp-opt-btn.selected,
+.l-opt-btn.selected {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(79, 70, 229, 0.38)) !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 0 2.5px #6366f1, 0 10px 25px rgba(99, 102, 241, 0.4) !important;
+  color: #ffffff !important;
+  transform: translateY(-2px) !important;
+}
+
+.option-item.selected .option-letter,
+.exercise-opt-btn.selected .opt-prefix,
+.comp-opt-btn.selected .opt-prefix,
+.l-opt-btn.selected .opt-prefix {
+  background: #6366f1 !important;
+  border-color: #a5b4fc !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.6) !important;
+  transform: scale(1.08) !important;
+}
+
+.option-item.selected .option-label,
+.exercise-opt-btn.selected .opt-text,
+.comp-opt-btn.selected .opt-text,
+.l-opt-btn.selected .opt-text {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Checkmark indicator for selected state */
+.option-item.selected::after,
+.exercise-opt-btn.selected::after,
+.comp-opt-btn.selected::after,
+.l-opt-btn.selected::after {
+  content: '✓' !important;
+  position: absolute !important;
+  right: 18px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  background: #6366f1 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4) !important;
+  animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* Feedback card styling */
+.feedback-card {
+  padding: 24px 28px;
+  border-radius: var(--radius-lg);
+  margin-top: 16px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.feedback-card.correct {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1.5px solid rgba(16, 185, 129, 0.4);
+}
+
+.feedback-card.incorrect {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1.5px solid rgba(239, 68, 68, 0.4);
+}
+
+.feedback-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.feedback-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.feedback-card.correct .feedback-title {
+  color: #6ee7b7;
+}
+
+.feedback-card.incorrect .feedback-title {
+  color: #fca5a5;
+}
+
+.correct-answer-text {
+  font-size: 15px;
+  color: #f87171;
+  margin-bottom: 8px;
+}
+
+.explanation-text {
+  font-size: 14.5px;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+/* Question Action Footers */
+.question-footer,
+.reading-submit-wrap,
+.listening-actions,
+.exercise-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  margin-top: 14px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Question Items in Reading and Listening Lists */
+.questions-list,
+.listening-questions-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 28px !important;
+  margin-bottom: 24px !important;
+}
+
+.comp-question-item,
+.l-question-item {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 18px !important;
+  padding: 24px 28px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+  transition: border-color 0.2s ease !important;
+}
+
+.comp-question-item:hover,
+.l-question-item:hover {
+  border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+.comp-question-title,
+.l-question-title {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  line-height: 1.5 !important;
+}
+
+/* Grammar Exercise Sandbox */
+.exercise-sandbox {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+  margin-top: 10px !important;
+}
+
+.exercise-prompt-wrap {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-left: 4px solid var(--primary) !important;
+  border-radius: 14px !important;
+  padding: 20px 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.exercise-instruction {
+  font-size: 13.5px !important;
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+}
+
+.exercise-prompt {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  line-height: 1.5 !important;
+}
+
+.exercise-feedback-box,
+.comp-results-box,
+.listening-results {
+  padding: 22px 26px !important;
+  border-radius: 16px !important;
+  margin-top: 18px !important;
+  background: rgba(99, 102, 241, 0.1) !important;
+  border: 1.5px solid rgba(99, 102, 241, 0.3) !important;
+  animation: fadeIn 0.25s ease-out !important;
+}
+
+/* Pointer Events Protection: clicking label or prefix triggers parent option */
+.option-letter,
+.opt-prefix,
+.option-label,
+.opt-text {
+  pointer-events: none !important;
+}
+
+
+

@@ -140,9 +140,10 @@ export class ReadingView {
                   <div class="comp-question-item" data-q-idx="${idx}">
                     <div class="comp-question-title">${idx + 1}. ${q.question}</div>
                     <div class="comp-options-list">
-                      ${q.options.map(opt => `
+                      ${q.options.map((opt, i) => `
                         <button class="comp-opt-btn ${this.userAnswers[idx] === opt ? 'selected' : ''}" data-idx="${idx}" data-val="${opt}">
-                          ${opt}
+                          <span class="opt-prefix">${String.fromCharCode(65 + i)}</span>
+                          <span class="opt-text">${opt}</span>
                         </button>
                       `).join('')}
                     </div>
