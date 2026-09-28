@@ -4,6 +4,7 @@
  */
 import { api } from '../api.js';
 import { state } from '../state.js';
+import { achievementManager, ACHIEVEMENTS } from '../achievements.js';
 
 export class DashboardView {
   constructor() {
@@ -23,6 +24,8 @@ export class DashboardView {
     try {
       this.data = await api.getDashboard();
       state.setDashboard(this.data);
+      // Evaluate gamified achievements
+      await achievementManager.checkAll(this.data);
       this.renderContent();
     } catch (err) {
       if (err.message === 'AUTH_REQUIRED') {
@@ -249,7 +252,7 @@ export class DashboardView {
               <div class="card-subtitle">Hangi alanda pratik yapmak istiyorsanız hemen başlayın</div>
             </div>
           </div>
-          <div class="grid-3 labs-grid">
+          <div class="grid-4 labs-grid">
             <div class="lab-card card" data-view="grammar">
               <div class="lab-icon">📖</div>
               <div class="lab-title">Gramer Akademisi</div>
@@ -262,12 +265,30 @@ export class DashboardView {
               <div class="lab-desc">155+ kelimelik CEFR arşivi ve sınırsız canlı internet sözlüğü ile kalıcı öğrenim.</div>
               <button class="btn btn-secondary btn-sm">Kelimeleri Aç →</button>
             </div>
+            <div class="lab-card card" data-view="syntax">
+              <div class="lab-icon">🧩</div>
+              <div class="lab-title">Cümle Kurma (Syntax)</div>
+              <div class="lab-desc">S-V-O-M-P-T dizilim laboratuvarı ile İngilizce düşünme refleksinizi güçlendirin.</div>
+              <button class="btn btn-secondary btn-sm">Cümle Kur →</button>
+            </div>
             <div class="lab-card card" data-view="speaking">
               <div class="lab-icon">🗣️</div>
               <div class="lab-title">Konuşma & Diyalog</div>
               <div class="lab-desc">Günlük hayattaki durumlar için sesli rol yapma ve akıcılık simülatörü.</div>
               <button class="btn btn-secondary btn-sm">Konuşmaya Başla →</button>
             </div>
+          </div>
+
+          <!-- Achievements Banner -->
+          <div class="card dashboard-achievements-banner" id="dash-achievements-banner" style="cursor: pointer;">
+            <div class="dash-ach-left">
+              <div class="dash-ach-icon">🏆</div>
+              <div class="dash-ach-text">
+                <h3>Rozetler & Başarımlar (${achievementManager.getUnlockedAchievements().length} / ${ACHIEVEMENTS.length} Açıldı)</h3>
+                <p>Kazanılan rozetlerini incelemek ve kilitleri açmak için Rozet Vitrinini ziyaret et.</p>
+              </div>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-view-all-badges">Rozet Vitrini →</button>
           </div>
         </section>
       </div>
@@ -287,6 +308,15 @@ export class DashboardView {
 
     document.getElementById('goto-assessment-btn')?.addEventListener('click', () => {
       state.setView('assessment');
+    });
+
+    document.getElementById('dash-achievements-banner')?.addEventListener('click', () => {
+      state.setView('progress');
+    });
+
+    document.getElementById('btn-view-all-badges')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.setView('progress');
     });
 
     document.getElementById('refresh-tasks-btn')?.addEventListener('click', async () => {
@@ -340,11 +370,23 @@ export class DashboardView {
     });
 
     document.querySelectorAll('.skill-row').forEach(row => {
+      row.style.cursor = 'pointer';
       row.addEventListener('click', () => {
         const skill = row.dataset.skill;
-        if (skill && state.currentView !== skill) {
-          state.setView(skill);
-        }
+        const skillToViewMap = {
+          grammar: 'grammar',
+          vocabulary: 'vocabulary',
+          reading: 'reading',
+          listening: 'listening',
+          writing: 'writing',
+          speaking: 'speaking',
+          pronunciation: 'pronunciation',
+          sentence_formation: 'syntax',
+          comprehension: 'reading',
+          communication: 'speaking'
+        };
+        const targetView = skillToViewMap[skill] || skill;
+        if (targetView) state.setView(targetView);
       });
     });
   }

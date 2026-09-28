@@ -4,7 +4,8 @@
  * Guarantees every new learner starts at Level 0 (A1) with 0 XP
  * 100% offline & GitHub Pages static execution
  */
-import { staticData } from './static-data.js';
+import { staticData, ensureVocabularyLoaded } from './static-data.js';
+import { SYNTAX_CATEGORIES, SYNTAX_EXERCISES } from './syntax-data.js';
 
 class LocalService {
   constructor() {
@@ -46,6 +47,26 @@ class LocalService {
     return this.currentUser;
   }
 
+  async hashPassword(password) {
+    if (!password) return '';
+    try {
+      if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password + '_linguaforge_salt');
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch (e) {}
+    // Fallback if subtle crypto is unavailable
+    let hash = 0;
+    for (let i = 0; i < password.length; i++) {
+      hash = ((hash << 5) - hash) + password.charCodeAt(i);
+      hash |= 0;
+    }
+    return 'h_' + Math.abs(hash);
+  }
+
   async login(username, password) {
     const cleanUser = (username || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
@@ -57,8 +78,21 @@ class LocalService {
       throw new Error('Kullanıcı bulunamadı. Lütfen kullanıcı adınızı kontrol edin veya yeni hesap açın.');
     }
 
-    if (account.password && account.password !== cleanPass) {
-      throw new Error('Şifre hatalı! Lütfen şifrenizi tekrar deneyin.');
+    const hashedInput = await this.hashPassword(cleanPass);
+
+    // Support both hashed password and legacy plaintext password with automatic upgrade
+    if (account.password_hash) {
+      if (account.password_hash !== hashedInput) {
+        throw new Error('Şifre hatalı! Lütfen şifrenizi tekrar deneyin.');
+      }
+    } else if (account.password) {
+      if (account.password !== cleanPass) {
+        throw new Error('Şifre hatalı! Lütfen şifrenizi tekrar deneyin.');
+      }
+      // Upgrade plaintext password to hash
+      account.password_hash = hashedInput;
+      delete account.password;
+      this.saveAccounts(accounts);
     }
 
     this.currentUser = account;
@@ -81,11 +115,13 @@ class LocalService {
       throw new Error('Bu kullanıcı adı zaten alınmış. Farklı bir kullanıcı adı deneyin veya giriş yapın.');
     }
 
+    const passwordHash = await this.hashPassword(cleanPass);
+
     const newAccount = {
       id: 'u_' + Date.now(),
       username: cleanUser,
       displayName: cleanName,
-      password: cleanPass,
+      password_hash: passwordHash,
       createdAt: new Date().toISOString(),
       cefr_level: 'A1'
     };
@@ -97,7 +133,7 @@ class LocalService {
     localStorage.setItem('linguaforge_active_user', newAccount.username);
 
     // Initialize user storage strictly from 0 (A1)
-    this.initZeroUserStorage(cleanUser);
+    await this.initZeroUserStorage(cleanUser);
 
     return newAccount;
   }
@@ -108,17 +144,18 @@ class LocalService {
     let account = accounts.find(a => a.username === guestUser);
 
     if (!account) {
+      const guestPassHash = await this.hashPassword('123');
       account = {
         id: 'guest_' + Date.now(),
         username: guestUser,
         displayName: 'Misafir Öğrenci',
-        password: '123',
+        password_hash: guestPassHash,
         createdAt: new Date().toISOString(),
         cefr_level: 'A1'
       };
       accounts.push(account);
       this.saveAccounts(accounts);
-      this.initZeroUserStorage(guestUser);
+      await this.initZeroUserStorage(guestUser);
     }
 
     this.currentUser = account;
@@ -152,7 +189,8 @@ class LocalService {
     } catch (e) {}
   }
 
-  initZeroUserStorage(username) {
+  async initZeroUserStorage(username) {
+    await ensureVocabularyLoaded();
     const prefix = `linguaforge_u_${username}_`;
     
     // 0'dan Başlangıç İstatistikleri (0 XP, 0 dk, 0 kelime)
@@ -212,7 +250,8 @@ class LocalService {
     localStorage.setItem(prefix + 'daily_tasks_date', new Date().toISOString().slice(0, 10));
   }
 
-  syncVocabularyArchive(username) {
+  async syncVocabularyArchive(username) {
+    await ensureVocabularyLoaded();
     const user = username || (this.currentUser ? this.currentUser.username : 'misafir');
     const prefix = `linguaforge_u_${user}_`;
     try {
@@ -664,7 +703,7 @@ class LocalService {
 
   // Vocabulary
   async getVocabularyItems() {
-    this.syncVocabularyArchive();
+    await this.syncVocabularyArchive();
     const items = (this.getUserData('srs_items') || []).map(v => {
       const ex = (typeof v.examples === 'string' ? JSON.parse(v.examples) : v.examples) || v.example_sentences || [];
       const col = (typeof v.collocations === 'string' ? JSON.parse(v.collocations) : v.collocations) || [];
@@ -679,7 +718,7 @@ class LocalService {
   }
 
   async getReviewQueue(level = 'all') {
-    this.syncVocabularyArchive();
+    await this.syncVocabularyArchive();
     const allSrs = this.getUserData('srs_items') || [];
     
     // Calculate due count breakdown for each level
@@ -724,12 +763,19 @@ class LocalService {
   async submitReview(itemId, rating) {
     const items = this.getUserData('srs_items') || [];
     const idx = items.findIndex(i => i.id === itemId);
+    let r = Number(rating);
+    // If quality (0-5 scale) was passed, normalize to 0-3 rating:
+    // 0-1 => 0 (again), 2-3 => 1 (hard), 4 => 2 (good), 5 => 3 (easy)
+    if (r > 3) {
+      r = r >= 4 ? (r === 5 ? 3 : 2) : 1;
+    }
+
     if (idx !== -1) {
       // Rating: 0 = again, 1 = hard, 2 = good, 3 = easy
-      if (rating >= 2) {
+      if (r >= 2) {
         items[idx].due = false;
         items[idx].repetitions = (items[idx].repetitions || 0) + 1;
-        items[idx].interval = rating === 3 ? (items[idx].interval ? items[idx].interval * 2 : 4) : 2;
+        items[idx].interval = r === 3 ? (items[idx].interval ? items[idx].interval * 2 : 4) : 2;
       } else {
         items[idx].due = true;
         // Keep in queue for re-review
@@ -737,15 +783,15 @@ class LocalService {
       this.setUserData('srs_items', items);
     }
     const stats = this.getUserData('stats') || { xp: 0 };
-    stats.xp = (stats.xp || 0) + (rating >= 2 ? 10 : 3);
-    stats.total_words_learned = (stats.total_words_learned || 0) + (rating >= 2 ? 1 : 0);
+    stats.xp = (stats.xp || 0) + (r >= 2 ? 10 : 3);
+    stats.total_words_learned = (stats.total_words_learned || 0) + (r >= 2 ? 1 : 0);
     this.setUserData('stats', stats);
     this.recordDailyTaskProgress('task-vocab');
     return { success: true };
   }
 
   async drawFreshWords(level = 'all', count = 15) {
-    this.syncVocabularyArchive();
+    await this.syncVocabularyArchive();
     const items = this.getUserData('srs_items') || [];
     
     // Find candidate words for the specified level that are NOT currently due
@@ -1092,8 +1138,82 @@ class LocalService {
     return { history: [] };
   }
 
-  async getWeeklyReport() {
-    return { report: null };
+  // Syntax & Sentence Formation (SVO / SVOMPT)
+  async getSyntaxExercises(category = 'all', level = 'all') {
+    let list = [...SYNTAX_EXERCISES];
+    if (category && category !== 'all') {
+      list = list.filter(item => item.category === category);
+    }
+    if (level && level !== 'all') {
+      list = list.filter(item => item.cefr_level.toUpperCase() === level.toUpperCase());
+    }
+    return {
+      categories: SYNTAX_CATEGORIES,
+      exercises: list,
+      total: list.length
+    };
+  }
+
+  async submitSyntaxExercise(exerciseId, constructedSentence, isFirstAttempt = true) {
+    const exercise = SYNTAX_EXERCISES.find(e => e.id === exerciseId);
+    if (!exercise) throw new Error('Cümle bulunamadı');
+
+    const clean = (s) => (s || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[.,!?;:\"'’]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const userClean = clean(constructedSentence);
+    const targetClean = clean(exercise.correct_sentence);
+    const altClean = (exercise.acceptable_alternatives || []).map(clean);
+
+    const isCorrect = userClean === targetClean || altClean.includes(userClean);
+
+    const stats = this.getUserData('stats') || { xp: 0 };
+    const xpGained = isCorrect ? (isFirstAttempt ? 15 : 8) : 2;
+    stats.xp = (stats.xp || 0) + xpGained;
+
+    // Update sentence_formation skill score in profile
+    const skills = this.getUserData('skills') || {};
+    if (!skills.sentence_formation) {
+      skills.sentence_formation = { level: 'A1', sublevel: '-', score: 0 };
+    }
+    if (isCorrect) {
+      skills.sentence_formation.score = Math.min(100, (skills.sentence_formation.score || 0) + 4);
+      const sc = skills.sentence_formation.score;
+      if (sc >= 85) skills.sentence_formation.level = 'B2';
+      else if (sc >= 65) skills.sentence_formation.level = 'B1';
+      else if (sc >= 40) skills.sentence_formation.level = 'A2';
+      else skills.sentence_formation.level = 'A1';
+    }
+    this.setUserData('skills', skills);
+    this.setUserData('stats', stats);
+
+    // Record error in Error Bank if wrong
+    if (!isCorrect) {
+      const errors = this.getUserData('errors') || [];
+      errors.unshift({
+        id: Date.now(),
+        skill: 'sentence_formation',
+        error_text: constructedSentence,
+        correction: exercise.correct_sentence,
+        explanation: exercise.explanation_tr || 'İngilizce cümle dizilimi (S-V-O-M-P-T) kuralına uymuyor.',
+        occurrence_count: 1,
+        resolved: 0
+      });
+      this.setUserData('errors', errors);
+    }
+
+    return {
+      isCorrect,
+      correctSentence: exercise.correct_sentence,
+      grammarBreakdown: exercise.grammar_breakdown,
+      explanationTr: exercise.explanation_tr,
+      xpGained,
+      sentenceFormationSkill: skills.sentence_formation
+    };
   }
 }
 

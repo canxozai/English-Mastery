@@ -10,6 +10,7 @@ export function createSchema() {
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
       display_name TEXT NOT NULL,
+      password_hash TEXT DEFAULT '',
       native_language TEXT DEFAULT 'tr',
       created_at TEXT DEFAULT (datetime('now')),
       last_active TEXT DEFAULT (datetime('now')),
@@ -464,6 +465,13 @@ export function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_user_grammar_review ON user_grammar_progress(user_id, next_review);
     CREATE INDEX IF NOT EXISTS idx_assessment_questions ON assessment_questions(assessment_id);
   `);
+
+  // Schema migrations for existing databases
+  try {
+    db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT ""');
+  } catch (e) {
+    // Column already exists or table was freshly created
+  }
 
   console.log('✓ Database schema created successfully');
 }

@@ -14,9 +14,14 @@
   <link rel="icon" type="image/png" sizes="64x64" href="./assets/favicon-p4XurncA.png">
   <link rel="icon" type="image/svg+xml" href="./assets/favicon-Cb9eXmrE.svg">
   <link rel="apple-touch-icon" href="./assets/favicon-p4XurncA.png">
+  <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0f172a">
-  <script type="module" crossorigin src="./assets/index-TcraEgQq.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-DKQ1muWy.css">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LinguaForge">
+  <script type="module" crossorigin src="./assets/index-BmLvs-c7.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BkzQMfqJ.css">
 </head>
 <body class="dark-theme">
   <div id="app" class="app-layout">
@@ -96,6 +101,18 @@
           </svg>
           <span>Akıllı Kelime Kartları (SRS)</span>
           <span class="nav-badge count" id="review-due-badge">0</span>
+        </button>
+
+        <button class="nav-item" data-view="syntax" id="nav-syntax">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="6" width="6" height="5" rx="1"></rect>
+            <rect x="10" y="6" width="6" height="5" rx="1"></rect>
+            <rect x="18" y="6" width="4" height="5" rx="1"></rect>
+            <path d="M5 16h14"></path>
+            <path d="M15 13l4 3-4 3"></path>
+          </svg>
+          <span>Cümle Kurma (Syntax)</span>
+          <span class="nav-badge" style="background: rgba(14, 165, 233, 0.2); color: var(--accent-cyan); font-size: 10px; font-weight: 700;">SVO</span>
         </button>
 
         <button class="nav-item" data-view="reading" id="nav-reading">

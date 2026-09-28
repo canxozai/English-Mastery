@@ -5,6 +5,7 @@
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { speech } from '../speech.js';
+import { achievementManager } from '../achievements.js';
 
 export class VocabularyView {
   constructor() {
@@ -871,6 +872,8 @@ export class VocabularyView {
     try {
       await api.submitReview(item.id, rating);
       this.isCardFlipped = false;
+      // Trigger achievement check
+      achievementManager.checkAll().catch(() => {});
 
       // If user rated 0 (Tekrar Et), push this item to the end of the active list
       // so they can see and practice it again at the end of this session!
@@ -891,6 +894,19 @@ export class VocabularyView {
       this.bindEvents();
     } catch (err) {
       state.showToast('Değerlendirme kaydedilemedi: ' + err.message, 'error');
+    }
+  }
+
+  destroy() {
+    if (this.keyHandler) {
+      window.removeEventListener('keydown', this.keyHandler);
+      this.keyHandler = null;
+    }
+    if (this.audioElement) {
+      try {
+        this.audioElement.pause();
+        this.audioElement = null;
+      } catch (e) {}
     }
   }
 }

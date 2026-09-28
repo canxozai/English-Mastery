@@ -17,19 +17,23 @@ import { SpeakingView } from './views/SpeakingView.js';
 import { PronunciationView } from './views/PronunciationView.js';
 import { ErrorBankView } from './views/ErrorBankView.js';
 import { ProgressView } from './views/ProgressView.js';
+import { SyntaxView } from './views/SyntaxView.js';
 import { wordInspector } from './word-inspector.js';
+import { ensureVocabularyLoaded } from './static-data.js';
 
 class App {
   constructor() {
     this.viewport = document.getElementById('viewport');
     this.pageTitle = document.getElementById('page-title');
     this.authModal = null;
+    this.currentView = null;
 
     this.views = {
       dashboard: new DashboardView(),
       assessment: new AssessmentView(),
       grammar: new GrammarView(),
       vocabulary: new VocabularyView(),
+      syntax: new SyntaxView(),
       reading: new ReadingView(),
       listening: new ListeningView(),
       writing: new WritingView(),
@@ -44,6 +48,7 @@ class App {
       assessment: '10 Becerili Seviye Belirleme Sınavı',
       grammar: 'Gramer Akademisi & Kurallar',
       vocabulary: 'Akıllı Kelime Kartları (SRS)',
+      syntax: 'Cümle Kurma & Sözdizimi Laboratuvarı',
       reading: 'Okuma & Anlama Laboratuvarı',
       listening: 'Dinleme & Telaffuz Laboratuvarı',
       writing: 'Yazma Stüdyosu & Anlık Değerlendirme',
@@ -59,9 +64,22 @@ class App {
     this.bindSessionTimer();
     this.bindSidebarToggle();
     this.bindLogout();
+    this.registerServiceWorker();
 
     // Enable global double-click & selection instant translator
     wordInspector.initGlobalListener();
+
+    // Idle background pre-loader for vocabulary archive
+    const preloadVocab = () => {
+      ensureVocabularyLoaded().catch(() => {});
+    };
+    if (typeof window !== 'undefined') {
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(preloadVocab, { timeout: 3000 });
+      } else {
+        setTimeout(preloadVocab, 1500);
+      }
+    }
 
     // Listen to state view changes
     state.on('view:change', (viewName) => {
@@ -147,6 +165,16 @@ class App {
 
     if (!this.views[viewName]) return;
 
+    // Cleanup previous view if it defines a destroy lifecycle method
+    if (this.currentView && this.views[this.currentView] && typeof this.views[this.currentView].destroy === 'function') {
+      try {
+        this.views[this.currentView].destroy();
+      } catch (err) {
+        console.warn(`Error destroying view ${this.currentView}:`, err);
+      }
+    }
+    this.currentView = viewName;
+
     // Update active nav button
     document.querySelectorAll('.nav-item').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.view === viewName);
@@ -188,6 +216,29 @@ class App {
     if (toggleBtn && sidebar) {
       toggleBtn.addEventListener('click', () => {
         sidebar.classList.toggle('open');
+      });
+    }
+  }
+
+  registerServiceWorker() {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => {
+            reg.addEventListener('updatefound', () => {
+              const worker = reg.installing;
+              if (worker) {
+                worker.addEventListener('statechange', () => {
+                  if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                    state.toast('Yeni bir güncelleme yüklendi! Sayfayı yenileyerek yeni özelliklere erişebilirsiniz.', 'info');
+                  }
+                });
+              }
+            });
+          })
+          .catch((err) => {
+            console.debug('ServiceWorker notice:', err.message);
+          });
       });
     }
   }

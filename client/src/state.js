@@ -78,7 +78,12 @@ class AppState {
     if (type === 'success') icon = '✅';
     if (type === 'error') icon = '⚠️';
 
-    toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+    const iconSpan = document.createElement('span');
+    iconSpan.textContent = icon;
+    const msgSpan = document.createElement('span');
+    msgSpan.textContent = message;
+    toast.appendChild(iconSpan);
+    toast.appendChild(msgSpan);
     container.appendChild(toast);
 
     setTimeout(() => {

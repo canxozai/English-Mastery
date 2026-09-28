@@ -1,0 +1,66 @@
+{
+  "name": "LinguaForge — Sıfırdan Akıcı İngilizce",
+  "short_name": "LinguaForge",
+  "description": "Kişiselleştirilmiş, 10 beceri odaklı, sıfırdan akıcı İngilizceye ulaştıran CEFR dil öğrenme ve ustalık platformu.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "tr",
+  "dir": "ltr",
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Günün Rutini",
+      "short_name": "Rutin",
+      "description": "Bugünün mikro-müfredatını tamamla",
+      "url": "/#dashboard",
+      "icons": [{ "src": "/favicon.png", "sizes": "64x64" }]
+    },
+    {
+      "name": "Cümle Kurma (Syntax)",
+      "short_name": "Cümle Kur",
+      "description": "S-V-O-M-P-T cümle dizilimi alıştırmaları yap",
+      "url": "/#syntax",
+      "icons": [{ "src": "/favicon.png", "sizes": "64x64" }]
+    },
+    {
+      "name": "Kelime Tekrarı (SRS)",
+      "short_name": "Kelimeler",
+      "description": "Aralıklı tekrar ile kelimeleri pekiştir",
+      "url": "/#vocabulary",
+      "icons": [{ "src": "/favicon.png", "sizes": "64x64" }]
+    }
+  ]
+}

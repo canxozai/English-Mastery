@@ -101,17 +101,58 @@ export function getDb() {
   return db;
 }
 
-export function saveDb() {
-  if (db) {
-    const data = db.export();
-    const buffer = Buffer.from(data);
-    fs.writeFileSync(DB_PATH, buffer);
+let saveTimeout = null;
+let isDirty = false;
+
+/**
+ * Flush pending database writes synchronously to disk
+ */
+export function saveDbSync() {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
   }
+  if (db && isDirty) {
+    try {
+      const data = db.export();
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(DB_PATH, buffer);
+      isDirty = false;
+    } catch (err) {
+      console.error('Error saving SQLite database to disk:', err);
+    }
+  }
+}
+
+/**
+ * Debounced database saving to avoid disk saturation on high-frequency writes
+ * Flushes to disk after 400ms of inactivity
+ */
+export function saveDb(delayMs = 400) {
+  if (!db) return;
+  isDirty = true;
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    saveDbSync();
+  }, delayMs);
+}
+
+// Ensure database flushes on exit/shutdown
+if (typeof process !== 'undefined') {
+  process.on('exit', () => saveDbSync());
+  process.on('SIGINT', () => {
+    saveDbSync();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    saveDbSync();
+    process.exit(0);
+  });
 }
 
 export function closeDb() {
   if (db) {
-    saveDb();
+    saveDbSync();
     db.close();
     db = null;
   }

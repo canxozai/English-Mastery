@@ -2,7 +2,7 @@
  * WordInspector - Instant Vocabulary & Grammar Structure Inspector
  * Enables instant in-context lookup, audio pronunciation, and 1-click SRS card creation
  */
-import { staticData } from './static-data.js';
+import { staticData, ensureVocabularyLoaded } from './static-data.js';
 import { speech } from './speech.js';
 import { api } from './api.js';
 import { state } from './state.js';
@@ -234,6 +234,9 @@ class WordInspectorEngine {
     }
 
     // 3. Direct hit in staticData vocabulary_items
+    if (!staticData.vocabulary_items || staticData.vocabulary_items.length === 0) {
+      ensureVocabularyLoaded();
+    }
     const allVocab = staticData.vocabulary_items || [];
     const vocabMatch = allVocab.find(v => v.word && v.word.toLowerCase() === clean);
     if (vocabMatch) {

@@ -225,10 +225,12 @@ class ApiClient {
 
   async submitReview(itemId, rating) {
     if (this.useLocal) return localService.submitReview(itemId, rating);
+    const ratingMap = [0, 2, 4, 5];
+    const quality = ratingMap[rating] !== undefined ? ratingMap[rating] : Number(rating);
     try {
       return await this.request(`/vocabulary/${itemId}/review`, {
         method: 'POST',
-        body: JSON.stringify({ rating })
+        body: JSON.stringify({ rating, quality })
       });
     } catch (e) {
       return localService.submitReview(itemId, rating);
@@ -251,8 +253,27 @@ class ApiClient {
     return await localService.resetLevelQueue(level);
   }
 
-  async searchOnlineDictionary(word) {
-    return await localService.fetchOnlineWord(word);
+  // Syntax & Word Order Studio (SVO / SVOMPT)
+  async getSyntaxExercises(category = 'all', level = 'all') {
+    if (this.useLocal) return localService.getSyntaxExercises(category, level);
+    try {
+      const q = new URLSearchParams({ category, level }).toString();
+      return await this.request(`/syntax/exercises?${q}`);
+    } catch (e) {
+      return localService.getSyntaxExercises(category, level);
+    }
+  }
+
+  async submitSyntaxExercise(exerciseId, sentence, isFirstAttempt = true) {
+    if (this.useLocal) return localService.submitSyntaxExercise(exerciseId, sentence, isFirstAttempt);
+    try {
+      return await this.request('/syntax/submit', {
+        method: 'POST',
+        body: JSON.stringify({ exerciseId, sentence, isFirstAttempt })
+      });
+    } catch (e) {
+      return localService.submitSyntaxExercise(exerciseId, sentence, isFirstAttempt);
+    }
   }
 
   // Reading Comprehension

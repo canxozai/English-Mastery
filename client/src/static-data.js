@@ -1,5 +1,3 @@
-import { vocabularyArchive } from './vocabulary-data.js';
-
 export const staticData = {
   "grammar_topics": [
     {
@@ -753,7 +751,7 @@ export const staticData = {
       "context": null
     }
   ],
-  "vocabulary_items": vocabularyArchive,
+  "vocabulary_items": [],
   "reading_materials": [
     {
       "id": 1,
@@ -1615,3 +1613,31 @@ export const staticData = {
     }
   ]
 };
+
+let _loadingPromise = null;
+
+/**
+ * Lazy loads the 1,000+ vocabulary items chunk on demand
+ * Splitting this prevents bundling 437KB of vocabulary into the initial page load
+ */
+export async function ensureVocabularyLoaded() {
+  if (staticData.vocabulary_items && staticData.vocabulary_items.length > 0) {
+    return staticData.vocabulary_items;
+  }
+  if (_loadingPromise) {
+    return _loadingPromise;
+  }
+  _loadingPromise = (async () => {
+    try {
+      const mod = await import('./vocabulary-data.js');
+      staticData.vocabulary_items = mod.vocabularyArchive || [];
+      return staticData.vocabulary_items;
+    } catch (err) {
+      console.error('Failed to lazy load vocabulary archive:', err);
+      return [];
+    } finally {
+      _loadingPromise = null;
+    }
+  })();
+  return _loadingPromise;
+}
