@@ -492,7 +492,30 @@ class LocalService {
   async getAssessmentQuestions(assessmentId, skill) {
     const all = staticData.assessment_question_bank || [];
     const filtered = all.filter(q => q.skill === skill);
-    const questions = filtered.slice(0, 3).map(q => ({
+
+    // Standardized 5-tier CEFR diagnostic ladder: A1 -> A2 -> B1 -> B2 -> C1/C2
+    const ladder = ['A1', 'A2', 'B1', 'B2', Math.random() > 0.5 ? 'C1' : 'C2'];
+    const selected = [];
+
+    for (const lvl of ladder) {
+      const candidates = filtered.filter(q => q.cefr_level === lvl);
+      if (candidates.length > 0) {
+        const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+        selected.push(chosen);
+      }
+    }
+
+    // Fallback if any tier was missing
+    if (selected.length < 5) {
+      for (const q of filtered) {
+        if (!selected.some(s => s.id === q.id)) {
+          selected.push(q);
+          if (selected.length >= 5) break;
+        }
+      }
+    }
+
+    const questions = selected.map(q => ({
       id: q.id,
       type: q.question_type,
       question: q.question,
@@ -503,7 +526,7 @@ class LocalService {
 
     return {
       skill,
-      targetLevel: 'A1-A2',
+      targetLevel: 'A1-C2',
       questions
     };
   }
@@ -521,10 +544,20 @@ class LocalService {
         this.currentAssessment.correctCount = (this.currentAssessment.correctCount || 0) + 1;
       }
       if (!this.currentAssessment.skillsEvaluated[q.skill]) {
-        this.currentAssessment.skillsEvaluated[q.skill] = { correct: 0, total: 0 };
+        this.currentAssessment.skillsEvaluated[q.skill] = {
+          correct: 0,
+          total: 0,
+          byLevel: {}
+        };
       }
-      this.currentAssessment.skillsEvaluated[q.skill].total += 1;
-      if (isCorrect) this.currentAssessment.skillsEvaluated[q.skill].correct += 1;
+      const sk = this.currentAssessment.skillsEvaluated[q.skill];
+      sk.total += 1;
+      if (isCorrect) sk.correct += 1;
+      if (!sk.byLevel[q.cefr_level]) {
+        sk.byLevel[q.cefr_level] = { correct: 0, total: 0 };
+      }
+      sk.byLevel[q.cefr_level].total += 1;
+      if (isCorrect) sk.byLevel[q.cefr_level].correct += 1;
     }
 
     if (!isCorrect) {
@@ -561,38 +594,93 @@ class LocalService {
     const correctQ = ca.correctCount || 0;
     const ratio = correctQ / totalQ;
 
+    // Standard CEFR benchmark conversion (Council of Europe / Cambridge scale)
     let overall = 'A1';
-    if (ratio >= 0.85) overall = 'B2';
-    else if (ratio >= 0.65) overall = 'B1';
-    else if (ratio >= 0.40) overall = 'A2';
+    if (ratio >= 0.90) overall = 'C2';
+    else if (ratio >= 0.78) overall = 'C1';
+    else if (ratio >= 0.60) overall = 'B2';
+    else if (ratio >= 0.42) overall = 'B1';
+    else if (ratio >= 0.22) overall = 'A2';
     else overall = 'A1';
 
     const skillKeys = ['grammar', 'vocabulary', 'reading', 'listening', 'writing', 'speaking', 'pronunciation', 'sentence_formation', 'comprehension', 'communication'];
+    const skillNamesTr = {
+      grammar: 'Dilbilgisi',
+      vocabulary: 'Kelime Haznesi',
+      reading: 'Okuma & Anlama',
+      listening: 'Dinleme & Algılama',
+      writing: 'Yazma & Bağlaçlar',
+      speaking: 'Konuşma & Akıcılık',
+      pronunciation: 'Telaffuz & Fonetik',
+      sentence_formation: 'Cümle Kurma & Sentaks',
+      comprehension: 'Kavrama Hızı',
+      communication: 'Doğal İletişim'
+    };
     const skills = {};
+    const evaluatedArray = [];
 
     skillKeys.forEach(k => {
-      const ev = ca.skillsEvaluated[k] || { correct: 0, total: 1 };
+      const ev = ca.skillsEvaluated[k] || { correct: 0, total: 1, byLevel: {} };
       const skillRatio = ev.total > 0 ? (ev.correct / ev.total) : 0;
+      const byLvl = ev.byLevel || {};
+
       let lvl = 'A1';
-      if (skillRatio >= 0.85) lvl = 'B2';
-      else if (skillRatio >= 0.65) lvl = 'B1';
-      else if (skillRatio >= 0.40) lvl = 'A2';
-      else lvl = 'A1';
+      let sublevel = '';
+
+      if (skillRatio >= 0.90 || (byLvl.C2?.correct > 0 && skillRatio >= 0.80)) {
+        lvl = 'C2';
+      } else if (skillRatio >= 0.75 || (byLvl.C1?.correct > 0 && skillRatio >= 0.65)) {
+        lvl = 'C1';
+        if (skillRatio >= 0.85) sublevel = '+';
+      } else if (skillRatio >= 0.55 || (byLvl.B2?.correct > 0 && skillRatio >= 0.50)) {
+        lvl = 'B2';
+        if (skillRatio >= 0.70) sublevel = '+';
+      } else if (skillRatio >= 0.38 || (byLvl.B1?.correct > 0 && skillRatio >= 0.30)) {
+        lvl = 'B1';
+        if (skillRatio >= 0.50) sublevel = '+';
+      } else if (skillRatio >= 0.20 || byLvl.A2?.correct > 0) {
+        lvl = 'A2';
+        if (skillRatio >= 0.30) sublevel = '+';
+      } else {
+        lvl = 'A1';
+      }
 
       const sc = Math.round(skillRatio * 100);
-      skills[k] = { level: lvl, sublevel: '', score: sc, correct: ev.correct, total: ev.total, accuracy: sc };
+      skills[k] = {
+        level: lvl,
+        sublevel,
+        score: sc,
+        correct: ev.correct,
+        total: ev.total,
+        accuracy: sc
+      };
+
+      evaluatedArray.push({
+        skill: k,
+        nameTr: skillNamesTr[k] || k,
+        level: lvl,
+        accuracy: sc
+      });
     });
+
+    evaluatedArray.sort((a, b) => a.accuracy - b.accuracy);
+    const weakAreas = evaluatedArray.slice(0, 2).map(item => ({
+      skill: item.skill,
+      level: item.level,
+      detail: `${item.nameTr} becerisinde eksiklerinizi pekiştirmek için odaklanmış alıştırmalar önerilir (%${item.accuracy} başarı).`
+    }));
+
+    const strongAreas = evaluatedArray.slice(-2).reverse().map(item => ({
+      skill: item.skill,
+      level: item.level,
+      detail: `${item.nameTr} becerisinde güçlü bir performans gösterdiniz (%${item.accuracy} başarı).`
+    }));
 
     const result = {
       overallCEFR: overall,
       skills,
-      weakAreas: [
-        { skill: 'speaking', level: 'A1', detail: 'Günlük basit diyaloglar ve temel kelimeler' },
-        { skill: 'grammar', level: 'A1', detail: 'To Be fiili ve temel zaman kalıpları' }
-      ],
-      strongAreas: [
-        { skill: 'comprehension', level: overall, detail: 'Temel bağlam kavrama' }
-      ],
+      weakAreas,
+      strongAreas,
       totalQuestions: totalQ,
       totalCorrect: correctQ
     };

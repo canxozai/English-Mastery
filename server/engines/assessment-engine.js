@@ -28,58 +28,36 @@ export function startAssessment(db, userId) {
  * Starts at A2, adjusts based on performance
  */
 export function getQuestionsForSkill(db, assessmentId, skill, currentLevel = 'A2', performance = null) {
-  let targetLevel = currentLevel;
+  // Standardized 5-tier CEFR diagnostic ladder: A1 -> A2 -> B1 -> B2 -> C1/C2
+  const ladder = ['A1', 'A2', 'B1', 'B2', Math.random() > 0.5 ? 'C1' : 'C2'];
+  const questions = [];
 
-  // Adapt level based on performance
-  if (performance) {
-    const { correct, total } = performance;
-    const accuracy = total > 0 ? correct / total : 0;
-
-    if (accuracy >= 0.8 && total >= 3) {
-      // Move up
-      const idx = CEFR_LEVELS.indexOf(targetLevel);
-      if (idx < CEFR_LEVELS.length - 1) {
-        targetLevel = CEFR_LEVELS[idx + 1];
-      }
-    } else if (accuracy < 0.4 && total >= 3) {
-      // Move down
-      const idx = CEFR_LEVELS.indexOf(targetLevel);
-      if (idx > 0) {
-        targetLevel = CEFR_LEVELS[idx - 1];
-      }
-    }
+  for (const lvl of ladder) {
+    const q = db.prepare(`
+      SELECT * FROM assessment_question_bank
+      WHERE skill = ? AND cefr_level = ?
+      ORDER BY RANDOM()
+      LIMIT 1
+    `).get(skill, lvl);
+    if (q) questions.push(q);
   }
 
-  // Get questions from the bank
-  const questions = db.prepare(`
-    SELECT * FROM assessment_question_bank
-    WHERE skill = ? AND cefr_level = ?
-    ORDER BY RANDOM()
-    LIMIT 5
-  `).all(skill, targetLevel);
-
-  // If not enough questions at target level, also get adjacent levels
-  if (questions.length < 3) {
-    const idx = CEFR_LEVELS.indexOf(targetLevel);
-    const adjacentLevels = [];
-    if (idx > 0) adjacentLevels.push(CEFR_LEVELS[idx - 1]);
-    if (idx < CEFR_LEVELS.length - 1) adjacentLevels.push(CEFR_LEVELS[idx + 1]);
-
-    for (const level of adjacentLevels) {
-      const moreQuestions = db.prepare(`
-        SELECT * FROM assessment_question_bank
-        WHERE skill = ? AND cefr_level = ?
-        ORDER BY RANDOM()
-        LIMIT ?
-      `).all(skill, level, 5 - questions.length);
-      questions.push(...moreQuestions);
-      if (questions.length >= 5) break;
+  // Fallback if any tier was missing
+  if (questions.length < 5) {
+    const more = db.prepare(`
+      SELECT * FROM assessment_question_bank
+      WHERE skill = ?
+      ORDER BY RANDOM()
+      LIMIT ?
+    `).all(skill, 5 - questions.length);
+    for (const m of more) {
+      if (!questions.some(x => x.id === m.id)) questions.push(m);
     }
   }
 
   return {
     skill,
-    targetLevel,
+    targetLevel: 'A1-C2',
     questions: questions.map(q => ({
       id: q.id,
       type: q.question_type,
@@ -184,24 +162,21 @@ export function getSkillPerformance(db, assessmentId, skill) {
  * Determine CEFR level for a skill based on assessment performance
  */
 export function determineCEFRLevel(performance) {
-  const { byLevel } = performance;
+  const { byLevel, correct = 0, total = 1 } = performance;
 
   let determinedLevel = 'A1';
   let sublevel = '';
-  let score = 0;
 
   for (const level of CEFR_LEVELS) {
     if (!byLevel[level]) continue;
 
-    const { correct, total } = byLevel[level];
-    if (total === 0) continue;
+    const { correct: lvlCorrect, total: lvlTotal } = byLevel[level];
+    if (lvlTotal === 0) continue;
 
-    const accuracy = correct / total;
+    const accuracy = lvlCorrect / lvlTotal;
 
     if (accuracy >= 0.7) {
       determinedLevel = level;
-      score = accuracy * 100;
-
       if (accuracy >= 0.9) {
         sublevel = '+';
       } else if (accuracy < 0.8) {
@@ -210,24 +185,23 @@ export function determineCEFRLevel(performance) {
         sublevel = '';
       }
     } else if (accuracy >= 0.4) {
-      // Partial understanding at this level
       const idx = CEFR_LEVELS.indexOf(level);
       if (idx > 0) {
         determinedLevel = CEFR_LEVELS[idx - 1];
         sublevel = '+';
-        score = 50 + accuracy * 50;
       }
       break;
     } else {
-      // Below this level
       break;
     }
   }
 
+  const overallScore = Math.round((correct / Math.max(total, 1)) * 100);
+
   return {
     level: determinedLevel,
     sublevel,
-    score: Math.round(score),
+    score: overallScore,
     display: determinedLevel + sublevel
   };
 }

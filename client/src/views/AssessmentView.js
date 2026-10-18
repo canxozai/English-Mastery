@@ -45,30 +45,30 @@ export class AssessmentView {
     this.container.innerHTML = `
       <div class="assessment-intro-wrapper">
         <div class="card assessment-intro-card">
-          <div class="assessment-badge-pill">CEFR Seviye Belirleme & Teşhis</div>
-          <h1 class="assessment-title">10 Becerili Kapsamlı Seviye Sınavı</h1>
+          <div class="assessment-badge-pill">Avrupa Konseyi CEFR & Cambridge Standartları (A1 - C2)</div>
+          <h1 class="assessment-title">10 Becerili Profesyonel Seviye Sınavı</h1>
           <p class="assessment-desc">
-            Bu değerlendirme; sadece çoktan seçmeli ezber testi değil, İngilizceyi anlama ve üretme kapasitenizi 10 temel boyutta analiz eder:
+            Bu değerlendirme; Cambridge English, Oxford Placement Test ve CEFR resmi yetkinlik tanımlayıcıları esas alınarak hazırlanmıştır. İngilizce anlama ve üretme kapasitenizi A1'den C2'ye kadar 10 temel boyutta bağımsız olarak ölçer:
           </p>
           <div class="skills-preview-grid">
-            <div class="skill-tag-pill">📖 Dilbilgisi</div>
-            <div class="skill-tag-pill">📚 Kelime</div>
-            <div class="skill-tag-pill">📰 Okuma</div>
-            <div class="skill-tag-pill">🎧 Dinleme</div>
-            <div class="skill-tag-pill">✍️ Yazma</div>
-            <div class="skill-tag-pill">🗣️ Konuşma</div>
-            <div class="skill-tag-pill">🎙️ Telaffuz</div>
-            <div class="skill-tag-pill">🧩 Cümle Kurma</div>
-            <div class="skill-tag-pill">💡 Kavrama</div>
-            <div class="skill-tag-pill">🤝 Doğal İletişim</div>
+            <div class="skill-tag-pill">📖 Dilbilgisi (Grammar)</div>
+            <div class="skill-tag-pill">📚 Kelime Haznesi (Lexis)</div>
+            <div class="skill-tag-pill">📰 Okuma & Anlama (Reading)</div>
+            <div class="skill-tag-pill">🎧 Dinleme Algısı (Listening)</div>
+            <div class="skill-tag-pill">✍️ Yazma & Bağlaçlar (Writing)</div>
+            <div class="skill-tag-pill">🗣️ Konuşma Akıcılığı (Speaking)</div>
+            <div class="skill-tag-pill">🎙️ Telaffuz & Fonetik (Pronunciation)</div>
+            <div class="skill-tag-pill">🧩 Cümle Sentaksı (Syntax)</div>
+            <div class="skill-tag-pill">💡 Kavrama & Düşünme (Comprehension)</div>
+            <div class="skill-tag-pill">🤝 Doğal İletişim (Pragmatics)</div>
           </div>
           <div class="assessment-notice">
             <span class="notice-icon">💡</span>
-            <span>Yaklaşık 5-10 dakika sürer. İsterseniz sınava girebilir, isterseniz doğrudan A1 (Sıfırdan) başlayabilirsiniz.</span>
+            <span>Her beceride A1'den C2'ye kadar kademeli 5'er soru (toplam 50 soru) yer alır. Yaklaşık 10-15 dakika sürer. İsterseniz sınava girebilir, isterseniz doğrudan 0'dan (A1) başlayabilirsiniz.</span>
           </div>
           <div class="assessment-actions-row">
             <button class="btn btn-primary btn-lg" id="start-assessment-btn">
-              🎯 Sınava Başla (5-10 Dk) →
+              🎯 Kapsamlı Sınava Başla (50 Soru / 10-15 Dk) →
             </button>
             <button class="btn btn-secondary btn-lg" id="skip-assessment-btn">
               🚀 Sınavı Atla, Doğrudan 0'dan (A1) Başla
@@ -137,10 +137,10 @@ export class AssessmentView {
     const q = this.currentQuestions[this.currentQuestionIndex];
     this.selectedOption = null;
 
-    const progressPct = Math.round(
-      ((this.currentSkillIndex * Math.max(this.currentQuestions.length, 1) + this.currentQuestionIndex) /
-      (this.skills.length * 3)) * 100
-    );
+    const questionsPerSkill = Math.max(this.currentQuestions.length, 1);
+    const completed = this.currentSkillIndex * questionsPerSkill + this.currentQuestionIndex;
+    const totalQuestionsCount = this.skills.length * questionsPerSkill;
+    const progressPct = Math.min(100, Math.round((completed / totalQuestionsCount) * 100));
 
     this.container.innerHTML = `
       <div class="question-container">
@@ -148,7 +148,7 @@ export class AssessmentView {
         <div class="assessment-topbar">
           <div class="assessment-skill-indicator">
             <span class="skill-name-badge">${skillNameTr}</span>
-            <span class="skill-step">Beceri: ${this.currentSkillIndex + 1} / ${this.skills.length}</span>
+            <span class="skill-step">Beceri: ${this.currentSkillIndex + 1} / ${this.skills.length} · Soru: ${this.currentQuestionIndex + 1} / ${this.currentQuestions.length}</span>
           </div>
           <div class="progress-bar-wrap">
             <div class="progress-bar-fill" style="width: ${Math.min(progressPct, 100)}%;"></div>
